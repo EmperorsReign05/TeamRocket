@@ -1,0 +1,3 @@
+import type { RobotStatus } from '../context/SimulationContext';
+export const statusLabel = (status: RobotStatus) => status.charAt(0).toUpperCase() + status.slice(1);
+export const statusClass = (status: RobotStatus) => ({ idle: 'border-blue-300 bg-blue-500/80 shadow-[0_0_16px_rgba(59,130,246,0.65)]', moving: 'border-amber-200 bg-amber-400/90 shadow-[0_0_18px_rgba(245,158,11,0.65)]', charging: 'border-emerald-200 bg-emerald-400/90 shadow-[0_0_16px_rgba(52,211,153,0.6)]', blocked: 'border-rose-300 bg-rose-500/80 shadow-[0_0_16px_rgba(244,63,94,0.6)]', conflict: 'border-violet-300 bg-violet-500/80 shadow-[0_0_16px_rgba(139,92,246,0.6)]' }[status]);

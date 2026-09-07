@@ -1,0 +1,2 @@
+import FleetStatus from '../components/FleetStatus';
+export default function FleetPage() { return <div className="mx-auto flex max-w-[1400px] flex-col gap-5"><div><div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/70">Operations / Fleet</div><h2 className="mt-1 text-2xl font-semibold text-zinc-100">Robot Fleet</h2><p className="mt-1 text-sm text-zinc-500">Battery history, uptime, routes, and current assignments.</p></div><FleetStatus detailed /></div>; }

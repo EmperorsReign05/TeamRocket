@@ -1,0 +1,2 @@
+import TaskTable from '../components/TaskTable';
+export default function TasksPage() { return <div className="mx-auto flex max-w-[1400px] flex-col gap-5"><div><div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/70">Operations / Queue</div><h2 className="mt-1 text-2xl font-semibold text-zinc-100">Tasks</h2><p className="mt-1 text-sm text-zinc-500">Filterable history of every warehouse movement.</p></div><TaskTable /></div>; }

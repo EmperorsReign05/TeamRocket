@@ -1,15 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-sans: var(--font-geist-sans), 'Segoe UI', sans-serif;
+  --font-mono: var(--font-geist-mono), 'SFMono-Regular', Consolas, monospace;
 }
 
 @layer base {
   body {
-    background-color: #0b1121;
+    background-color: #09090b;
     color: #f8fafc;
     font-family: var(--font-sans);
   }
+
+  button, [role="button"] { outline-offset: 3px; }
+  button:focus-visible, [role="button"]:focus-visible { outline: 2px solid #22d3ee; }
 }
 
 /* Custom scrollbar for log section */
@@ -21,11 +25,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #27272a;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #3f3f46;
 }
 
 .warehouse-grid {
