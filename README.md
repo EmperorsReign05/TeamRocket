@@ -1,6 +1,6 @@
-# AMR Fleet Control Dashboard
+# Team Rocket
 
-This repository contains the frontend dashboard for the Autonomous Mobile Robot (AMR) Fleet Control system. It is a standalone Next.js application designed to visualize a dynamic 2D warehouse map, monitor active tasks, and provide an interactive control panel.
+This repository contains the frontend dashboard for {redacted} system. It is a standalone Next.js application designed to visualize a dynamic 2D warehouse map, monitor active tasks, and provide an interactive control panel.
 
 The application currently uses mock static states to render its UI. The backend team can seamlessly connect this frontend to a real backend (e.g., ROS 2 via WebSockets) by replacing the mock data with live streams.
 
