@@ -29,6 +29,7 @@ export type RobotState = {
 
   battery: number;
   status: RobotStatus;
+    model: RobotModel;
 
   currentTaskId?: string;
 
@@ -38,6 +39,16 @@ export type RobotState = {
 
   // Higher priority wins conflicts during PIBT resolution.
   priority: number;
+};
+
+export type RobotModel = {
+  model: string;
+  payloadCapacity: number;
+};
+
+export type TaskState={
+  current_task: Task;
+  queued_tasks: Task[];
 };
 
 export type Task = {
