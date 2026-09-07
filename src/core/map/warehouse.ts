@@ -1,0 +1,148 @@
+import type { Cell, Position, WarehouseMap } from "../types";
+
+// Single source of truth for the warehouse layout. The dashboard and every
+// algorithm (auction, A*, PIBT) must read the layout from here — never
+// hardcode grid geometry anywhere else.
+//
+// Invariant: a cell blocked here must be blocked for A* too, and vice versa.
+
+export const WAREHOUSE_WIDTH = 20;
+export const WAREHOUSE_HEIGHT = 13;
+
+// Shelf rack rectangles: [x, y, width, height] in grid cells. Every cell
+// inside one of these rectangles is blocked (not traversable).
+export type ShelfBlock = readonly [x: number, y: number, w: number, h: number];
+
+export const SHELF_BLOCKS: ShelfBlock[] = [
+  // Col 1 (x=1,2)
+  [1, 1, 2, 3],
+  [1, 9, 2, 3],
+  // Col 2 (x=4,5)
+  [4, 1, 2, 3],
+  [4, 5, 2, 3],
+  [4, 9, 2, 3],
+  // Col 3 (x=7,8)
+  [7, 1, 2, 3],
+  [7, 5, 2, 3],
+  [7, 9, 2, 3],
+  // Col 4 (x=10,11)
+  [10, 1, 2, 3],
+  [10, 5, 2, 3],
+  [10, 9, 2, 3],
+  // Col 5 (x=15,16)
+  [15, 1, 2, 3],
+  [15, 5, 2, 3],
+  [15, 9, 2, 3],
+  // Col 6 (x=18,19)
+  [18, 1, 2, 3],
+  [18, 5, 2, 3],
+  [18, 9, 2, 3],
+];
+
+export type NamedLocation = {
+  id: string;
+  position: Position;
+};
+
+// Named locations are display/reference metadata layered on top of the grid.
+// They do not block movement by themselves.
+export const PICKUP_STATIONS: NamedLocation[] = [
+  { id: "P1", position: { x: 1, y: 0 } },
+  { id: "P2", position: { x: 14, y: 0 } },
+];
+
+export const DROPOFF_STATIONS: NamedLocation[] = [
+  { id: "D1", position: { x: 6, y: 12 } },
+  { id: "D2", position: { x: 17, y: 12 } },
+];
+
+export type WaitingZone = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export const WAITING_ZONES: WaitingZone[] = [
+  { id: "W1", x: 1, y: 5, width: 2, height: 3 },
+  { id: "W2", x: 12, y: 4, width: 2, height: 3 },
+  { id: "W3", x: 12, y: 8, width: 2, height: 3 },
+];
+
+export const INTERSECTIONS: Position[] = [
+  { x: 6, y: 4 },
+  { x: 6, y: 8 },
+  { x: 13, y: 4 },
+  { x: 13, y: 8 },
+];
+
+function key(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+function buildBlockedSet(): Set<string> {
+  const blocked = new Set<string>();
+  for (const [bx, by, bw, bh] of SHELF_BLOCKS) {
+    for (let dx = 0; dx < bw; dx++) {
+      for (let dy = 0; dy < bh; dy++) {
+        blocked.add(key(bx + dx, by + dy));
+      }
+    }
+  }
+  return blocked;
+}
+
+const BLOCKED_CELLS = buildBlockedSet();
+
+function buildCells(): Cell[] {
+  const cells: Cell[] = [];
+  for (let y = 0; y < WAREHOUSE_HEIGHT; y++) {
+    for (let x = 0; x < WAREHOUSE_WIDTH; x++) {
+      cells.push({
+        position: { x, y },
+        blocked: BLOCKED_CELLS.has(key(x, y)),
+        congestion: 0,
+      });
+    }
+  }
+  return cells;
+}
+
+// Creates a fresh WarehouseMap instance (fresh cells array, so callers can
+// mutate congestion per-tick without aliasing shared state).
+export function createWarehouseMap(): WarehouseMap {
+  return {
+    width: WAREHOUSE_WIDTH,
+    height: WAREHOUSE_HEIGHT,
+    cells: buildCells(),
+  };
+}
+
+export function isInsideMap(position: Position, map: WarehouseMap): boolean {
+  return (
+    position.x >= 0 &&
+    position.x < map.width &&
+    position.y >= 0 &&
+    position.y < map.height
+  );
+}
+
+export function getCellIndex(map: WarehouseMap, position: Position): number {
+  return position.y * map.width + position.x;
+}
+
+export function getCell(map: WarehouseMap, position: Position): Cell | undefined {
+  if (!isInsideMap(position, map)) return undefined;
+  return map.cells[getCellIndex(map, position)];
+}
+
+export function isBlocked(position: Position, map: WarehouseMap): boolean {
+  const cell = getCell(map, position);
+  // Outside the map counts as blocked — nothing traverses off-grid.
+  return cell ? cell.blocked : true;
+}
+
+export function isTraversable(position: Position, map: WarehouseMap): boolean {
+  return isInsideMap(position, map) && !isBlocked(position, map);
+}
