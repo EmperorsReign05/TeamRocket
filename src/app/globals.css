@@ -1,88 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0f172a; /* Slate 900 */
-  --color-foreground: #f8fafc; /* Slate 50 */
-  --color-card: #1e293b; /* Slate 800 */
-  --color-card-foreground: #f1f5f9; /* Slate 100 */
-  --color-border: #334155; /* Slate 700 */
-  --color-input: #334155;
-  --color-primary: #3b82f6; /* Blue 500 */
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #0f172a; /* Slate 900 */
-  --color-secondary-foreground: #f8fafc;
-  --color-accent: #3b82f6;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #ef4444; /* Red 500 */
-  --color-destructive-foreground: #ffffff;
-  --color-ring: #3b82f6;
-  
-  --radius-lg: 0.5rem;
-  --radius-md: calc(0.5rem - 2px);
-  --radius-sm: calc(0.5rem - 4px);
+  --font-sans: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    background-color: #0b1121;
+    color: #f8fafc;
+    font-family: var(--font-sans);
   }
 }
 
-/* Custom styles for grid map and animations */
+/* Custom scrollbar for log section */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
 .warehouse-grid {
-  display: grid;
-  grid-template-columns: repeat(20, minmax(0, 1fr));
-  grid-template-rows: repeat(13, minmax(0, 1fr));
-  gap: 2px;
-  background-color: #1e293b;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  position: relative;
-  overflow: hidden;
-}
-
-.grid-cell {
-  background-color: #0f172a;
-  border: 1px solid #1e293b;
-  aspect-ratio: 1/1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.grid-cell-shelf {
-  background-color: #334155;
-  border-color: #475569;
-}
-
-.grid-cell-intersection {
-  background-image: linear-gradient(45deg, #1e293b 25%, transparent 25%, transparent 75%, #1e293b 75%, #1e293b), 
-                    linear-gradient(45deg, #1e293b 25%, transparent 25%, transparent 75%, #1e293b 75%, #1e293b);
-  background-size: 8px 8px;
-  background-position: 0 0, 4px 4px;
-}
-
-.robot {
-  position: absolute;
-  width: 70%;
-  height: 70%;
-  border-radius: 50%;
-  box-shadow: 0 0 10px currentColor;
-  z-index: 10;
-  transition: all 0.5s ease-in-out;
-}
-
-.ghost-path {
-  position: absolute;
-  border: 2px dashed currentColor;
-  opacity: 0.3;
-  z-index: 5;
-  pointer-events: none;
+  /* Pattern background to simulate tiny graph lines */
+  background-image: 
+    linear-gradient(to right, rgba(30, 41, 59, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.4) 1px, transparent 1px);
+  background-size: calc(100% / 20) calc(100% / 13);
+  background-position: top left;
 }

@@ -4,74 +4,71 @@ import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, ListTodo, Car, Map, BarChart3, Settings, 
   Plus, Play, AlertTriangle, XOctagon, AlertCircle, RefreshCw,
-  Battery, BatteryFull, BatteryMedium, BatteryLow, CheckCircle2,
-  Clock, TrendingUp
+  BatteryFull, BatteryMedium, CheckCircle2, Clock, TrendingUp
 } from 'lucide-react';
 
 export default function Dashboard() {
   const [time, setTime] = useState<string>('');
   
-  // Mock Robot State
-  const [robots, setRobots] = useState([
-    { id: 'AMR-01', color: '#3b82f6', pos: { x: 1, y: 1 }, target: { x: 1, y: 4 }, battery: 87, status: 'Docked (P1)' },
-    { id: 'AMR-02', color: '#f59e0b', pos: { x: 8, y: 3 }, target: { x: 3, y: 6 }, battery: 62, status: 'En route to T-102' },
-    { id: 'AMR-03', color: '#22c55e', pos: { x: 6, y: 6 }, target: { x: 6, y: 12 }, battery: 91, status: 'Waiting (W2)' },
-  ]);
-
-  // Mock Logs
-  const [logs, setLogs] = useState([
-    { time: '14:32', text: 'AMR-01 docked at P1', type: 'info' },
-    { time: '14:31', text: 'AMR-02 reserved i05 (t=12-14s)', type: 'info' },
-    { time: '14:31', text: 'AMR-03 waiting at W2 (aisle busy)', type: 'warning' },
-    { time: '14:30', text: 'Task T-102 assigned to AMR-02', type: 'info' },
-    { time: '14:29', text: 'AMR-03 reached waiting zone W2', type: 'info' },
-  ]);
-
-  // Animation Loop Mock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('en-US', { hour12: false }) + ' - ' + now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }));
+      setTime(now.toLocaleTimeString('en-GB', { hour12: false }) + '   Mon, 24 Feb 2025');
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
-
-    // Simple mock animation for robots
-    const animTimer = setInterval(() => {
-      setRobots(prev => prev.map(r => {
-        const newPos = { ...r.pos };
-        if (newPos.x < r.target.x) newPos.x += 1;
-        else if (newPos.x > r.target.x) newPos.x -= 1;
-        else if (newPos.y < r.target.y) newPos.y += 1;
-        else if (newPos.y > r.target.y) newPos.y -= 1;
-        
-        // Randomly assign new target if reached
-        let newTarget = { ...r.target };
-        if (newPos.x === r.target.x && newPos.y === r.target.y) {
-            newTarget = { 
-                x: Math.floor(Math.random() * 15) + 1, 
-                y: Math.floor(Math.random() * 10) + 1 
-            };
-        }
-        return { ...r, pos: newPos, target: newTarget };
-      }));
-    }, 2000);
-
-    return () => {
-      clearInterval(timer);
-      clearInterval(animTimer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
+  // Shelf blocks configuration: [x, y, width, height]
+  const shelfBlocks = [
+    // Col 1 (x=1,2)
+    [1, 1, 2, 3], [1, 9, 2, 3],
+    // Col 2 (x=4,5)
+    [4, 1, 2, 3], [4, 5, 2, 3], [4, 9, 2, 3],
+    // Col 3 (x=7,8)
+    [7, 1, 2, 3], [7, 5, 2, 3], [7, 9, 2, 3],
+    // Col 4 (x=10,11)
+    [10, 1, 2, 3], [10, 5, 2, 3], [10, 9, 2, 3],
+    // Col 5 (x=15,16)
+    [15, 1, 2, 3], [15, 5, 2, 3], [15, 9, 2, 3],
+    // Col 6 (x=18,19)
+    [18, 1, 2, 3], [18, 5, 2, 3], [18, 9, 2, 3],
+  ];
+
+  const renderShelf = (x: number, y: number, w: number, h: number) => {
+    return (
+      <div 
+        key={`shelf-${x}-${y}`} 
+        className="absolute bg-[#0f172a] border border-[#1e293b] p-[2px] rounded-sm shadow-md"
+        style={{ 
+          left: `calc(100% * ${x}/20)`, 
+          top: `calc(100% * ${y}/13)`, 
+          width: `calc(100% * ${w}/20)`, 
+          height: `calc(100% * ${h}/13)`,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${w}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${h}, minmax(0, 1fr))`,
+          gap: '2px'
+        }}
+      >
+        {/* Render individual racks inside the shelf block */}
+        {Array.from({ length: w * h }).map((_, i) => (
+          <div key={i} className="bg-[#334155] border border-[#475569] rounded-[1px] shadow-inner"></div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#0b1121] text-slate-200 overflow-hidden font-sans text-sm selection:bg-blue-500/30">
       
       {/* Sidebar */}
-      <div className="w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 gap-8">
-        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-blue-900/20">
-          Z
+      <div className="w-[72px] bg-[#0b1121] border-r border-[#1e293b] flex flex-col items-center py-6 gap-8 shrink-0 z-20">
+        <div className="w-10 h-10 bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg border border-[#334155]">
+          <span className="opacity-80">R</span>
         </div>
-        <nav className="flex flex-col gap-6 w-full">
+        <nav className="flex flex-col gap-2 w-full">
           {[
             { icon: LayoutDashboard, label: 'Dashboard', active: true },
             { icon: ListTodo, label: 'Tasks' },
@@ -80,268 +77,377 @@ export default function Dashboard() {
             { icon: BarChart3, label: 'Analytics' },
             { icon: Settings, label: 'Settings' }
           ].map((item, i) => (
-            <div key={i} className={`flex flex-col items-center gap-1 cursor-pointer w-full py-2 ${item.active ? 'text-blue-500 border-r-4 border-blue-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300'}`}>
-              <item.icon size={24} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+            <div key={i} className={`flex flex-col items-center gap-1.5 cursor-pointer w-full py-3 ${item.active ? 'text-blue-500 bg-blue-500/10 border-l-2 border-blue-500' : 'text-slate-500 hover:text-slate-300 border-l-2 border-transparent'}`}>
+              <item.icon size={20} strokeWidth={item.active ? 2.5 : 2} />
+              <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </div>
           ))}
         </nav>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0f172a]">
         
         {/* Header */}
-        <header className="h-20 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-900/50">
-          <div>
-            <h1 className="text-2xl font-semibold text-white tracking-tight">AMR Fleet Control Dashboard</h1>
-            <p className="text-sm text-slate-400 mt-1">Distributed • Edge-AI Powered • Collision-Free • Scalable</p>
+        <header className="h-[72px] border-b border-[#1e293b] flex items-center justify-between px-6 shrink-0 bg-[#0b1121]">
+          <div className="flex flex-col justify-center">
+            <h1 className="text-xl font-semibold text-white tracking-wide">AMR Fleet Control Dashboard</h1>
+            <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Distributed • Edge-AI Powered • Collision-Free • Scalable</p>
           </div>
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-400">System Status</span>
-              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div className="flex items-center gap-10">
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[11px] text-slate-400 font-medium">System Status</span>
+              <div className="flex items-center gap-2 text-[#22c55e] text-xs font-semibold tracking-wide">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] animate-pulse shadow-[0_0_8px_#22c55e]"></span>
                 All Systems Operational
               </div>
             </div>
-            <div className="text-right text-sm text-slate-300 font-mono bg-slate-900 py-1.5 px-4 rounded-lg border border-slate-800">
-              {time}
+            <div className="text-right text-xs text-slate-400 font-mono flex flex-col items-end gap-1">
+              <span className="text-[11px] font-sans font-medium text-slate-400 tracking-wide">Time & Date</span>
+              <span className="text-slate-300 tracking-wider font-mono">{time || '14:32:17   Mon, 24 Feb 2025'}</span>
             </div>
           </div>
         </header>
 
-        {/* Dashboard Grid */}
-        <div className="flex-1 p-6 flex gap-6 overflow-hidden">
+        {/* Dashboard Layout */}
+        <div className="flex-1 p-4 flex gap-4 overflow-hidden">
           
-          {/* Left Column - Map & Controls */}
-          <div className="flex-1 flex flex-col gap-6 min-w-0">
+          {/* Left Column (70%) */}
+          <div className="w-[72%] flex flex-col gap-4 min-w-0 h-full">
             
             {/* Map Container */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 flex-1 flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
-                <h2 className="font-semibold text-slate-200">Warehouse Layout (2D)</h2>
-                <div className="flex gap-4 text-xs text-slate-400">
-                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-700"></div> Shelf</div>
-                  <div className="flex items-center gap-2"><div className="w-3 h-3 border border-slate-500 border-dashed"></div> Path</div>
-                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500"></div> Pickup</div>
-                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500"></div> Drop</div>
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col flex-1 overflow-hidden shadow-lg relative">
+              
+              {/* Map Header */}
+              <div className="h-12 border-b border-[#1e293b] flex justify-between items-center px-5 bg-[#0b1121]/60 shrink-0 z-10">
+                <h2 className="font-semibold text-slate-200 text-sm tracking-wide">Warehouse Layout (2D)</h2>
+                <div className="flex gap-4 text-[11px] text-slate-400 font-medium tracking-wide">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#334155] rounded-sm"></div> Shelf</div>
+                  <div className="flex items-center gap-2"><div className="w-4 border-t border-slate-500 border-dashed"></div> Nav Path</div>
+                  <div className="flex items-center gap-2"><div className="w-4 border-t border-[#ef4444] opacity-50 border-dotted"></div> Ghost Path</div>
+                  <div className="flex items-center gap-2">
+                     <div className="w-3 h-3 border border-slate-500 flex items-center justify-center relative"><div className="w-[1px] h-3 bg-slate-500 rotate-45 absolute"></div><div className="w-[1px] h-3 bg-slate-500 -rotate-45 absolute"></div></div> 
+                     Intersection
+                  </div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#22c55e] rounded-sm"></div> Pickup</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#ef4444] rounded-sm"></div> Drop</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 border border-blue-500 border-dashed rounded-sm"></div> Waiting Zone</div>
                 </div>
               </div>
               
-              <div className="flex-1 p-6 flex items-center justify-center bg-slate-950 overflow-auto">
-                <div className="warehouse-grid w-full max-w-4xl aspect-[20/13]">
-                  {/* Grid Cells (20x13 = 260 cells) */}
-                  {Array.from({ length: 260 }).map((_, i) => {
-                    const x = i % 20;
-                    const y = Math.floor(i / 20);
-                    // Mock Shelves
-                    const isShelf = (y >= 1 && y <= 3 && x >= 1 && x <= 2) || 
-                                    (y >= 5 && y <= 7 && x >= 1 && x <= 2) ||
-                                    (y >= 9 && y <= 11 && x >= 1 && x <= 2) ||
-                                    (y >= 1 && y <= 3 && x >= 15 && x <= 16) ||
-                                    (y >= 5 && y <= 7 && x >= 15 && x <= 16) ||
-                                    (y >= 9 && y <= 11 && x >= 15 && x <= 16);
-                    return (
-                      <div key={i} className={`grid-cell ${isShelf ? 'grid-cell-shelf' : ''}`}>
-                        {/* Mock Pickup / Dropoff stations */}
-                        {x === 1 && y === 0 && <div className="absolute inset-0 bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-xs font-bold text-emerald-300 z-0">P1</div>}
-                        {x === 13 && y === 0 && <div className="absolute inset-0 bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-xs font-bold text-emerald-300 z-0">P2</div>}
-                        {x === 6 && y === 12 && <div className="absolute inset-0 bg-red-500/20 border-2 border-red-500 flex items-center justify-center text-xs font-bold text-red-300 z-0">D1</div>}
-                        {x === 18 && y === 12 && <div className="absolute inset-0 bg-red-500/20 border-2 border-red-500 flex items-center justify-center text-xs font-bold text-red-300 z-0">D2</div>}
-                        
-                        {/* Intersection markers */}
-                        {((x === 3 || x === 6 || x === 13) && (y === 4 || y === 8)) && (
-                            <div className="absolute inset-0 grid-cell-intersection opacity-50 z-0"></div>
-                        )}
-                      </div>
-                    );
-                  })}
+              {/* Actual Map Grid */}
+              <div className="flex-1 bg-[#0f172a] p-4 flex items-center justify-center overflow-hidden">
+                 <div className="warehouse-map w-full h-full relative" style={{ 
+                     display: 'grid', 
+                     gridTemplateColumns: 'repeat(20, minmax(0, 1fr))', 
+                     gridTemplateRows: 'repeat(13, minmax(0, 1fr))',
+                     gap: '1px'
+                 }}>
+                    {/* Grid Background Lines (gives the graph look) */}
+                    {Array.from({ length: 260 }).map((_, i) => (
+                        <div key={i} className="border border-[#1e293b]/50"></div>
+                    ))}
 
-                  {/* Render Robots */}
-                  {robots.map((robot, idx) => (
-                    <div 
-                      key={robot.id}
-                      className="robot flex items-center justify-center font-bold text-[10px]"
-                      style={{ 
-                        backgroundColor: robot.color,
-                        color: '#fff',
-                        left: `calc(${(robot.pos.x / 20) * 100}% + 2px)`,
-                        top: `calc(${(robot.pos.y / 13) * 100}% + 2px)`,
-                        width: 'calc((100% / 20) - 4px)',
-                        height: 'calc((100% / 13) - 4px)',
-                      }}
-                    >
-                      {/* Optional label */}
+                    {/* Coordinate Labels */}
+                    {Array.from({ length: 20 }).map((_, i) => (
+                        <div key={`col-${i}`} className="absolute top-[-20px] text-[10px] text-slate-500 font-mono" style={{ left: `calc((100%/20) * ${i} + (100%/40) - 4px)` }}>{i}</div>
+                    ))}
+                    {Array.from({ length: 13 }).map((_, i) => (
+                        <div key={`row-${i}`} className="absolute left-[-20px] text-[10px] text-slate-500 font-mono" style={{ top: `calc((100%/13) * ${i} + (100%/26) - 6px)` }}>{i}</div>
+                    ))}
+
+                    {/* Professional Shelves rendering */}
+                    {shelfBlocks.map(block => renderShelf(block[0], block[1], block[2], block[3]))}
+
+                    {/* Intersections */}
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                      <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
+                      <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
                     </div>
-                  ))}
-                  
-                  {/* Ghost Path (Mock) */}
-                  <div className="ghost-path" style={{ color: robots[1].color, left: 'calc((8/20)*100%)', top: 'calc((3/13)*100%)', width: 'calc((2/20)*100%)', height: '0', borderBottomWidth: '2px', borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }}></div>
-                  <div className="ghost-path" style={{ color: robots[1].color, left: 'calc((6/20)*100%)', top: 'calc((3/13)*100%)', height: 'calc((3/13)*100%)', width: '0', borderLeftWidth: '2px', borderTopWidth: 0, borderBottomWidth: 0, borderRightWidth: 0 }}></div>
-                  
-                </div>
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                      <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
+                      <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
+                    </div>
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 13/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                      <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
+                      <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
+                    </div>
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 13/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                      <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
+                      <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
+                    </div>
+
+                    {/* Waiting Zones */}
+                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 1/20)', top: 'calc(100% * 5/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
+                       <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W1</span>
+                    </div>
+                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
+                       <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W2</span>
+                    </div>
+                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
+                       <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W3</span>
+                    </div>
+
+                    {/* Stations */}
+                    <div className="absolute border-2 border-[#22c55e] bg-[#22c55e]/20 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 1/20)', top: 'calc(100% * 0/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <span className="text-[11px] text-[#22c55e] font-bold">P1</span>
+                    </div>
+                    <div className="absolute border-2 border-[#22c55e] bg-[#22c55e]/20 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 14/20)', top: 'calc(100% * 0/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <span className="text-[11px] text-[#22c55e] font-bold">P2</span>
+                    </div>
+                    <div className="absolute border-2 border-[#ef4444] bg-[#ef4444]/20 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 12/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <span className="text-[11px] text-[#ef4444] font-bold">D1</span>
+                    </div>
+                    <div className="absolute border-2 border-[#ef4444] bg-[#ef4444]/20 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 17/20)', top: 'calc(100% * 12/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <span className="text-[11px] text-[#ef4444] font-bold">D2</span>
+                    </div>
+
+
+                    {/* Navigable Paths */}
+                    {/* AMR-01 Path */}
+                    <div className="absolute border-l-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 1.5/20)', top: 'calc(100% * 0.5/13)', width: '0', height: 'calc(100% * 4/13)' }}></div>
+                    <div className="absolute border-t-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 1.5/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 4.5/20)', height: '0' }}></div>
+                    
+                    {/* AMR-02 Path (Current path) */}
+                    <div className="absolute border-t-2 border-[#f59e0b] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 3.5/20)', height: '0' }}></div>
+                    <div className="absolute border-l-2 border-[#f59e0b] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 4.5/13)', width: '0', height: 'calc(100% * 4/13)' }}></div>
+                    
+                    {/* AMR-02 Ghost Path (Considered but discarded) */}
+                    <div className="absolute border-t-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 10/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 3.5/20)', height: '0' }}></div>
+                    <div className="absolute border-l-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 13.5/20)', top: 'calc(100% * 4.5/13)', width: '0', height: 'calc(100% * 3.5/13)' }}></div>
+                    {/* Ghost Path X marker */}
+                    <div className="absolute flex items-center justify-center opacity-60" style={{ left: 'calc(100% * 13.3/20)', top: 'calc(100% * 7.8/13)' }}>
+                      <XOctagon size={12} className="text-[#ef4444]" />
+                    </div>
+
+                    {/* AMR-03 Path */}
+                    <div className="absolute border-l-2 border-[#22c55e] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 8.5/13)', width: '0', height: 'calc(100% * 3.5/13)' }}></div>
+
+
+                    {/* Robots */}
+                    {/* AMR-01 */}
+                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 1/20)', top: 'calc(100% * 1/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <div className="w-[50%] h-[50%] rounded-full bg-[#3b82f6] shadow-[0_0_12px_#3b82f6] relative z-20"></div>
+                       <span className="text-[9px] text-white mt-1 font-bold absolute top-full">AMR-01</span>
+                    </div>
+
+                    {/* AMR-02 */}
+                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 10/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <div className="w-[50%] h-[50%] rounded-full bg-[#f59e0b] shadow-[0_0_15px_#f59e0b] relative z-20 animate-pulse"></div>
+                       <span className="text-[9px] text-white mt-1 font-bold absolute bottom-full">AMR-02</span>
+                    </div>
+
+                    {/* AMR-03 */}
+                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                       <div className="w-[50%] h-[50%] rounded-full bg-[#22c55e] shadow-[0_0_12px_#22c55e] relative z-20"></div>
+                       <span className="text-[9px] text-white mt-1 font-bold absolute left-full ml-1 whitespace-nowrap">AMR-03</span>
+                    </div>
+
+
+                 </div>
               </div>
             </div>
 
-            {/* Bottom Controls & Metrics */}
-            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 flex flex-col gap-5 shrink-0">
-              <h3 className="font-semibold text-slate-200">Control Panel</h3>
-              
-              <div className="flex flex-wrap gap-3">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <Plus size={16} /> Create Task
-                </button>
-                <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <Play size={16} /> Start Simulation
-                </button>
-                <button className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <AlertTriangle size={16} /> Simulate Conflict
-                </button>
-                <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <XOctagon size={16} /> Simulate Deadlock
-                </button>
-                <button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <AlertCircle size={16} /> Fail AMR-02
-                </button>
-                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <XOctagon size={16} /> Block Aisle
-                </button>
-                <div className="flex-1"></div>
-                <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                  <RefreshCw size={16} /> Reset
-                </button>
-              </div>
+            {/* Bottom Panel (Fixed Height) */}
+            <div className="h-[120px] shrink-0 flex gap-4">
+                
+                {/* Control Panel */}
+                <div className="flex-1 bg-[#131c31] p-4 rounded-xl border border-[#1e293b] flex flex-col justify-between shadow-lg">
+                  <h3 className="font-semibold text-slate-200 text-[13px] tracking-wide mb-3">Control Panel</h3>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button className="bg-[#3b82f6] hover:bg-blue-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-blue-500/20">
+                      <Plus size={14} strokeWidth={2.5} /> Create Task
+                    </button>
+                    <button className="bg-[#22c55e] hover:bg-green-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-green-500/20">
+                      <Play size={14} strokeWidth={2.5} /> Start Simulation
+                    </button>
+                    <button className="bg-[#f59e0b] hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-amber-500/20">
+                      <AlertTriangle size={14} strokeWidth={2.5} /> Simulate Conflict
+                    </button>
+                    <button className="bg-[#ef4444] hover:bg-red-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-red-500/20">
+                      <XOctagon size={14} strokeWidth={2.5} /> Simulate Deadlock
+                    </button>
+                    <button className="bg-[#475569] hover:bg-slate-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                      <AlertCircle size={14} strokeWidth={2.5} /> Fail AMR-02
+                    </button>
+                    <button className="bg-[#8b5cf6] hover:bg-purple-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-purple-500/20">
+                      <XOctagon size={14} strokeWidth={2.5} /> Block Aisle
+                    </button>
+                    <div className="flex-1"></div>
+                    <button className="bg-[#1e293b] hover:bg-[#334155] border border-[#334155] text-slate-300 px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                      <RefreshCw size={14} strokeWidth={2.5} /> Reset
+                    </button>
+                  </div>
+                </div>
 
-              {/* Mini Metrics Row */}
-              <div className="grid grid-cols-5 gap-4 pt-4 border-t border-slate-800/50">
-                <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-400 text-xs font-medium mb-1">Total Tasks</p>
-                    <p className="text-2xl font-bold text-white">12</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                    <ListTodo size={20} />
-                  </div>
+                {/* Mini Metrics */}
+                <div className="w-[480px] bg-[#131c31] rounded-xl border border-[#1e293b] flex shadow-lg divide-x divide-[#1e293b]">
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                      <div className="flex items-center justify-between text-slate-400">
+                         <span className="text-[10px] font-semibold uppercase tracking-wider">Total Tasks</span>
+                         <ListTodo size={14} />
+                      </div>
+                      <div className="text-2xl font-bold text-white mt-1">12</div>
+                   </div>
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                      <div className="flex items-center justify-between text-[#22c55e]">
+                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Completed</span>
+                         <div className="w-5 h-5 rounded-full bg-[#22c55e]/20 flex items-center justify-center"><CheckCircle2 size={12} strokeWidth={3} /></div>
+                      </div>
+                      <div className="text-2xl font-bold text-white mt-1">9</div>
+                   </div>
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                      <div className="flex items-center justify-between text-[#ef4444]">
+                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Collisions</span>
+                         <div className="w-5 h-5 rounded-full bg-[#ef4444]/20 flex items-center justify-center"><AlertTriangle size={12} strokeWidth={3} /></div>
+                      </div>
+                      <div className="text-2xl font-bold text-white mt-1">0</div>
+                   </div>
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                      <div className="flex items-center justify-between text-[#3b82f6]">
+                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Time</span>
+                         <div className="w-5 h-5 rounded-full bg-[#3b82f6]/20 flex items-center justify-center"><Clock size={12} strokeWidth={3} /></div>
+                      </div>
+                      <div className="text-xl font-bold text-white mt-1">36.2s</div>
+                   </div>
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                      <div className="flex items-center justify-between text-[#8b5cf6]">
+                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fleet Util</span>
+                         <div className="w-5 h-5 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center"><TrendingUp size={12} strokeWidth={3} /></div>
+                      </div>
+                      <div className="text-xl font-bold text-white mt-1">78%</div>
+                   </div>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-400 text-xs font-medium mb-1">Completed</p>
-                    <p className="text-2xl font-bold text-white">9</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                    <CheckCircle2 size={20} />
-                  </div>
-                </div>
-                <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-400 text-xs font-medium mb-1">Collisions</p>
-                    <p className="text-2xl font-bold text-white">0</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center">
-                    <AlertTriangle size={20} />
-                  </div>
-                </div>
-                <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-400 text-xs font-medium mb-1">Avg Task Time</p>
-                    <p className="text-2xl font-bold text-white">36.2s</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                    <Clock size={20} />
-                  </div>
-                </div>
-                <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-400 text-xs font-medium mb-1">Fleet Util</p>
-                    <p className="text-2xl font-bold text-white">78%</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center">
-                    <TrendingUp size={20} />
-                  </div>
-                </div>
-              </div>
 
             </div>
           </div>
 
-          {/* Right Column - Status & Logs */}
-          <div className="w-[340px] flex flex-col gap-6 shrink-0">
+          {/* Right Column (28%) */}
+          <div className="w-[28%] flex flex-col gap-4 min-w-0 h-full">
             
             {/* Fleet Status */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="font-semibold text-slate-200">Fleet Status</h3>
-                <span className="text-xs text-emerald-400 font-medium">3 / 3 Online</span>
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shrink-0 shadow-lg">
+              <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40">
+                <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Fleet Status</h3>
+                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">3 / 3 Online</span>
               </div>
-              <div className="p-2">
-                {robots.map(r => (
-                  <div key={r.id} className="p-3 hover:bg-slate-800/50 rounded-lg flex items-center justify-between group transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full shadow-[0_0_8px_currentColor]" style={{ color: r.color, backgroundColor: r.color }}></div>
-                      <div>
-                        <div className="font-medium text-sm text-slate-200">{r.id}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{r.status}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-300 font-mono">
-                      {r.battery}%
-                      {r.battery > 80 ? <BatteryFull size={18} className="text-emerald-400" /> : 
-                       r.battery > 40 ? <BatteryMedium size={18} className="text-amber-400" /> : 
-                       <BatteryLow size={18} className="text-red-400" />}
+              <div className="p-3 flex flex-col gap-1.5">
+                
+                {/* AMR 01 */}
+                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#3b82f6] shadow-[0_0_10px_#3b82f6]"></div>
+                    <div>
+                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-01</div>
+                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">Docked (P1)</div>
                     </div>
                   </div>
-                ))}
+                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
+                    87%
+                    <BatteryFull size={22} className="text-[#22c55e]" strokeWidth={1.5} />
+                  </div>
+                </div>
+
+                {/* AMR 02 */}
+                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#f59e0b] shadow-[0_0_10px_#f59e0b]"></div>
+                    <div>
+                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-02</div>
+                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">En route to T-102</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
+                    62%
+                    <BatteryMedium size={22} className="text-[#f59e0b]" strokeWidth={1.5} />
+                  </div>
+                </div>
+
+                {/* AMR 03 */}
+                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]"></div>
+                    <div>
+                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-03</div>
+                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">Waiting (W2)</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
+                    91%
+                    <BatteryFull size={22} className="text-[#22c55e]" strokeWidth={1.5} />
+                  </div>
+                </div>
+
               </div>
             </div>
 
             {/* Active Tasks */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="font-semibold text-slate-200">Active Tasks</h3>
-                <span className="text-xs text-emerald-400 font-medium">2 Active</span>
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shrink-0 shadow-lg">
+              <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40">
+                <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Active Tasks</h3>
+                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">2 Active</span>
               </div>
-              <div className="p-2 flex flex-col gap-1">
-                <div className="p-3 border-b border-slate-800/50 flex justify-between items-start">
-                  <div>
-                    <div className="font-medium text-sm text-slate-200">T-102</div>
-                    <div className="text-xs text-slate-400 mt-1">Shelf A3 → B7</div>
-                    <div className="text-xs text-amber-400 mt-1 font-medium">AMR-02</div>
+              <div className="p-2 flex flex-col">
+                
+                <div className="px-4 py-3 border-b border-[#1e293b]/50 flex justify-between items-center">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-102</span>
+                        <span className="text-[11px] text-slate-400">Shelf A3 → B7</span>
+                    </div>
+                    <div className="text-[11px] text-[#f59e0b] font-bold tracking-wider">AMR-02</div>
                   </div>
-                  <span className="bg-blue-900/40 text-blue-400 border border-blue-800 text-[10px] uppercase font-bold px-2 py-1 rounded-full">In Progress</span>
+                  <span className="bg-[#1e3a8a]/40 text-[#60a5fa] border border-[#1e3a8a] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">In Progress</span>
                 </div>
-                <div className="p-3 border-b border-slate-800/50 flex justify-between items-start">
-                  <div>
-                    <div className="font-medium text-sm text-slate-200">T-103</div>
-                    <div className="text-xs text-slate-400 mt-1">Shelf C1 → D2</div>
-                    <div className="text-xs text-emerald-400 mt-1 font-medium">AMR-03</div>
+
+                <div className="px-4 py-3 border-b border-[#1e293b]/50 flex justify-between items-center">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-103</span>
+                        <span className="text-[11px] text-slate-400">Shelf C1 → D2</span>
+                    </div>
+                    <div className="text-[11px] text-[#22c55e] font-bold tracking-wider">AMR-03</div>
                   </div>
-                  <span className="bg-emerald-900/40 text-emerald-400 border border-emerald-800 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Assigned</span>
+                  <span className="bg-[#14532d]/40 text-[#4ade80] border border-[#14532d] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Assigned</span>
                 </div>
-                <div className="p-3 flex justify-between items-start opacity-50">
-                  <div>
-                    <div className="font-medium text-sm text-slate-200">T-104</div>
-                    <div className="text-xs text-slate-400 mt-1">Shelf B6 → A1</div>
-                    <div className="text-xs text-slate-500 mt-1">Unassigned</div>
+
+                <div className="px-4 py-3 flex justify-between items-center opacity-60">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-104</span>
+                        <span className="text-[11px] text-slate-400">Shelf B6 → A1</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-bold tracking-wider">Unassigned</div>
                   </div>
-                  <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] uppercase font-bold px-2 py-1 rounded-full">Pending</span>
+                  <span className="bg-[#1e293b]/60 text-slate-400 border border-[#334155] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Pending</span>
                 </div>
+
               </div>
             </div>
 
             {/* Event Log */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 flex-1 flex flex-col overflow-hidden min-h-0">
-              <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="font-semibold text-slate-200">Event Log</h3>
-                <span className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex-1 flex flex-col min-h-0 shadow-lg">
+              <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40 shrink-0">
+                <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Event Log</h3>
+                <span className="flex items-center gap-2 text-[10px] text-[#22c55e] font-bold tracking-wider uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shadow-[0_0_6px_#22c55e] animate-pulse"></span>
                   Live
                 </span>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-sm">
-                {logs.map((log, idx) => (
-                  <div key={idx} className="flex gap-3 items-start opacity-80 hover:opacity-100 transition-opacity">
-                    <span className="text-slate-500 font-mono text-xs mt-0.5 shrink-0">{log.time}</span>
+              <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2 text-[12px] font-medium tracking-wide">
+                {[
+                  { time: '14:32', text: 'AMR-01 docked at P1', type: 'info' },
+                  { time: '14:31', text: 'AMR-02 reserved i05 (t=12-14s)', type: 'info' },
+                  { time: '14:31', text: 'AMR-03 waiting at W2 (aisle busy)', type: 'warning' },
+                  { time: '14:30', text: 'Task T-102 assigned to AMR-02', type: 'info' },
+                  { time: '14:29', text: 'AMR-03 reached waiting zone W2', type: 'info' },
+                  { time: '14:28', text: 'Path planned for AMR-03', type: 'info' },
+                  { time: '14:27', text: 'Task T-103 created', type: 'info' },
+                  { time: '14:26', text: 'AMR-02 passed intersection i08', type: 'info' },
+                  { time: '14:25', text: 'System initialized', type: 'info' },
+                ].map((log, idx) => (
+                  <div key={idx} className="flex gap-4 items-start opacity-80 hover:opacity-100 transition-opacity pb-2">
+                    <span className="text-slate-500 font-mono text-[11px] shrink-0 pt-0.5">{log.time}</span>
                     <span className={`${log.type === 'warning' ? 'text-amber-400' : 'text-slate-300'}`}>
                       {log.text}
                     </span>
