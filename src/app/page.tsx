@@ -5,7 +5,6 @@ import type { Task, WorldState } from '@/core/types';
 import { createInitialWorld } from '@/core/simulation/state';
 import { stepSimulation } from '@/core/simulation/engine';
 import { 
-  SidebarNav,
   Header,
   WarehouseMap,
   ControlPanel,
@@ -17,17 +16,24 @@ import {
 } from '@/components/dashboard';
 
 const INITIAL_LOGS: LogEntry[] = [
-  { time: '14:32:00', text: 'Simulation engine ready (A* + PIBT active)', type: 'info' },
-  { time: '14:31:45', text: 'AMR-02 assigned to T-102', type: 'info' },
-  { time: '14:31:12', text: 'AMR-03 assigned to T-103', type: 'info' },
-  { time: '14:30:05', text: 'Warehouse grid and congestion field initialized', type: 'info' },
-  { time: '14:27:10', text: 'Task T-104 queued pending', type: 'info' },
-  { time: '14:25:00', text: 'System initialized with live WorldState', type: 'info' },
+  { time: '14:32:00', text: 'simulation engine ready (a* + pibt active)', type: 'info' },
+  { time: '14:31:45', text: 'amr-02 assigned to t-102', type: 'info' },
+  { time: '14:31:12', text: 'amr-03 assigned to t-103', type: 'info' },
+  { time: '14:30:05', text: 'warehouse grid and congestion field initialized', type: 'info' },
+  { time: '14:27:10', text: 'task t-104 queued pending', type: 'info' },
+  { time: '14:25:00', text: 'system initialized with live worldstate', type: 'info' },
 ];
 
 export default function Dashboard() {
-  const [time, setTime] = useState<string>('');
-  const [world, setWorld] = useState<WorldState>(() => createInitialWorld());
+  const [world, setWorld] = useState<WorldState>(() => {
+    const initial = createInitialWorld();
+    return {
+      ...initial,
+      robots: initial.robots.map((r) => 
+        r.id === 'AMR-03' ? { ...r, home: { x: 1, y: 5 } } : r
+      )
+    };
+  });
   const [logs, setLogs] = useState<LogEntry[]>(INITIAL_LOGS);
   const [isSimulating, setIsSimulating] = useState(false);
   const [robotCount, setRobotCount] = useState(3);
@@ -35,37 +41,45 @@ export default function Dashboard() {
   const [selectedRobotId, setSelectedRobotId] = useState<string | null>(null);
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
-      const dateString = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-      setTime(`${timeString}   ${dateString}`);
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     if (!isSimulating) return;
 
     const timer = setInterval(() => {
       setWorld((prevWorld) => {
-        const nextWorld = stepSimulation(prevWorld);
+        let currentWorld = prevWorld;
 
-        prevWorld.tasks.forEach((t) => {
+        const unassignedTask = currentWorld.tasks.find((t) => t.status === 'pending' && !t.assignedRobotId);
+        if (unassignedTask) {
+          const availableRobot = currentWorld.robots.find(
+            (r) => r.status === 'idle' && (!r.currentTaskId || r.currentTaskId === '')
+          );
+          if (availableRobot) {
+            currentWorld = {
+              ...currentWorld,
+              tasks: currentWorld.tasks.map((t) =>
+                t.id === unassignedTask.id ? { ...t, status: 'assigned', assignedRobotId: availableRobot.id } : t
+              ),
+              robots: currentWorld.robots.map((r) =>
+                r.id === availableRobot.id ? { ...r, status: 'assigned', currentTaskId: unassignedTask.id } : r
+              ),
+            };
+          }
+        }
+
+        const nextWorld = stepSimulation(currentWorld);
+
+        currentWorld.tasks.forEach((t) => {
           const nextT = nextWorld.tasks.find((nt) => nt.id === t.id);
           if (nextT && t.status !== nextT.status) {
             if (nextT.status === 'in_progress') {
-              addLog(`${nextT.assignedRobotId ?? 'Robot'} reached pickup for ${nextT.id}`, 'info');
+              addLog(`${(nextT.assignedRobotId ?? 'robot').toLowerCase()} reached pickup for ${nextT.id.toLowerCase()}`, 'info');
             } else if (nextT.status === 'completed') {
-              addLog(`Task ${nextT.id} completed at dropoff!`, 'info');
+              addLog(`task ${nextT.id.toLowerCase()} completed at dropoff`, 'info');
             }
           }
         });
 
-        if (nextWorld.metrics.conflictCount > prevWorld.metrics.conflictCount) {
-          addLog(`PIBT conflict resolved at tick ${nextWorld.tick}`, 'warning');
+        if (nextWorld.metrics.conflictCount > currentWorld.metrics.conflictCount) {
+          addLog(`pibt conflict resolved at tick ${nextWorld.tick}`, 'warning');
         }
 
         return nextWorld;
@@ -104,7 +118,7 @@ export default function Dashboard() {
         const updatedRobots = prev.robots.map((r) =>
           r.id === idleRobot.id ? { ...r, status: 'assigned' as const, currentTaskId: newTask.id } : r
         );
-        addLog(`Task ${taskId} created and assigned to ${idleRobot.id}`, 'info');
+        addLog(`task ${taskId.toLowerCase()} created and assigned to ${idleRobot.id.toLowerCase()}`, 'info');
         return {
           ...prev,
           tasks: [...prev.tasks, newTask],
@@ -112,7 +126,7 @@ export default function Dashboard() {
         };
       }
 
-      addLog(`Task ${taskId} created (queued pending)`, 'info');
+      addLog(`task ${taskId.toLowerCase()} queued pending`, 'info');
       return {
         ...prev,
         tasks: [...prev.tasks, newTask],
@@ -122,26 +136,26 @@ export default function Dashboard() {
 
   const handleToggleSimulation = () => {
     if (isSimulating) {
-      addLog('Simulation paused', 'warning');
+      addLog('simulation paused', 'warning');
     } else {
-      addLog('Simulation started (A* routing & PIBT stepping active)', 'info');
+      addLog('simulation started (a* routing and pibt stepping active)', 'info');
     }
     setIsSimulating(!isSimulating);
   };
 
   const handleSimulateConflict = () => {
-    addLog('Priority conflict trigger verified — PIBT active', 'warning');
+    addLog('priority conflict trigger verified: pibt active', 'warning');
   };
   
   const handleSimulateDeadlock = () => {
-    addLog('Deadlock avoidance verified: priority inheritance active', 'info');
+    addLog('deadlock avoidance verified: priority inheritance active', 'info');
   };
 
   const handleFailAMR = () => {
     setWorld((prev) => {
       const target = prev.robots.find((r) => r.id === 'AMR-02') || prev.robots[0];
       if (!target || target.status === 'failed') return prev;
-      addLog(`${target.id} failure injected! PIBT rerouting fleet...`, 'error');
+      addLog(`${target.id.toLowerCase()} failure injected! pibt rerouting fleet`, 'error');
       return {
         ...prev,
         robots: prev.robots.map((r) =>
@@ -152,12 +166,18 @@ export default function Dashboard() {
   };
 
   const handleReset = () => {
-    setWorld(createInitialWorld());
+    const initial = createInitialWorld();
+    setWorld({
+      ...initial,
+      robots: initial.robots.map((r) => 
+        r.id === 'AMR-03' ? { ...r, home: { x: 1, y: 5 } } : r
+      )
+    });
     setIsSimulating(false);
     setRobotCount(3);
     setShelfColCount(6);
     setSelectedRobotId(null);
-    addLog('System state reset to initial conditions', 'info');
+    addLog('system state reset to initial conditions', 'info');
   };
 
   const handleRobotCountChange = (newCount: number) => {
@@ -196,13 +216,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0b1121] text-slate-200 font-sans text-sm selection:bg-blue-500/30">
-      <SidebarNav onNavigate={(label) => addLog(`Navigated to ${label}`, 'info')} />
+    <div className="min-h-screen bg-[#09090b] text-[#fafafa] font-sans py-6 px-4 md:px-8 lg:px-12 flex justify-center items-start selection:bg-[#C9F27D]/30">
+      <div className="w-full max-w-[1520px] bg-black/40 backdrop-blur-2xl rounded-2xl border border-zinc-800/80 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden">
+        <Header />
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0f172a]">
-        <Header time={time} />
-
-        <div className="flex-1 p-4 flex gap-4">
+        <div className="p-4 flex gap-4">
           <div className="w-[72%] flex flex-col gap-4 min-w-0">
             <WarehouseMap 
               robots={world.robots}
@@ -221,7 +239,7 @@ export default function Dashboard() {
                 onSimulateConflict={handleSimulateConflict}
                 onSimulateDeadlock={handleSimulateDeadlock}
                 onFailAMR={handleFailAMR}
-                onBlockAisle={() => addLog('Aisle block simulated', 'warning')}
+                onBlockAisle={() => addLog('aisle block simulated', 'warning')}
                 onReset={handleReset}
                 onRobotCountChange={handleRobotCountChange}
                 onShelfColCountChange={setShelfColCount}
