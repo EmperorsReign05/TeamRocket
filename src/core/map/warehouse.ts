@@ -1,4 +1,4 @@
-import type { Cell, Position, WarehouseMap } from "../types";
+import type { Cell, Position, RobotState, WarehouseMap } from "../types";
 
 // Single source of truth for the warehouse layout. The dashboard and every
 // algorithm (auction, A*, PIBT) must read the layout from here — never
@@ -145,4 +145,54 @@ export function isBlocked(position: Position, map: WarehouseMap): boolean {
 
 export function isTraversable(position: Position, map: WarehouseMap): boolean {
   return isInsideMap(position, map) && !isBlocked(position, map);
+}
+
+// Congestion is derived purely from CURRENT robot occupancy — never from
+// predicted/future intent. Definition:
+//   - a cell a robot currently occupies gets CONGESTION_OCCUPIED_WEIGHT
+//   - each orthogonal neighbor of an occupied cell gets
+//     CONGESTION_NEIGHBOR_WEIGHT of "local pressure" radiated onto it
+//   - multiple robots contribute additively (a busy junction with several
+//     robots nearby reads as more congested than one robot alone)
+//
+// Recomputed from scratch each call (not cumulative across ticks), so it
+// stays deterministic for a given set of robot positions regardless of
+// simulation history.
+export const CONGESTION_OCCUPIED_WEIGHT = 3;
+export const CONGESTION_NEIGHBOR_WEIGHT = 1;
+
+const CONGESTION_NEIGHBOR_OFFSETS: Position[] = [
+  { x: 0, y: -1 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
+  { x: 1, y: 0 },
+];
+
+export function computeCongestion(map: WarehouseMap, robots: RobotState[]): WarehouseMap {
+  const pressure = new Map<string, number>();
+
+  const addPressure = (x: number, y: number, amount: number) => {
+    if (x < 0 || x >= map.width || y < 0 || y >= map.height) return;
+    const k = key(x, y);
+    pressure.set(k, (pressure.get(k) ?? 0) + amount);
+  };
+
+  for (const robot of robots) {
+    addPressure(robot.position.x, robot.position.y, CONGESTION_OCCUPIED_WEIGHT);
+    for (const offset of CONGESTION_NEIGHBOR_OFFSETS) {
+      addPressure(
+        robot.position.x + offset.x,
+        robot.position.y + offset.y,
+        CONGESTION_NEIGHBOR_WEIGHT
+      );
+    }
+  }
+
+  return {
+    ...map,
+    cells: map.cells.map((cell) => ({
+      ...cell,
+      congestion: pressure.get(key(cell.position.x, cell.position.y)) ?? 0,
+    })),
+  };
 }
