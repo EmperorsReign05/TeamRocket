@@ -1,14 +1,20 @@
 import type { RobotState, Task, WorldState } from "../types";
 import { calculateBid, type RobotBid } from "./cost";
 
-// A robot is only eligible to WIN a new task right now if it isn't already
-// committed to one — RobotState currently tracks a single currentTaskId,
-// so a busy robot has nowhere to hold a second assignment yet. Busy
-// robots are excluded from bidding entirely here rather than allowed to
-// "win and queue" — nothing downstream can act on that until a real task
-// queue is wired onto RobotState.
+// A robot may still be busy and bid on more work — it just can't take on
+// an unbounded backlog. Eligible = not broken, and its queue (tasks
+// waiting behind whatever it's currently doing) isn't already full.
+//
+// Note: calculateBid's ETA/workload math currently only accounts for the
+// robot's active route (currentTaskId's remaining path), not for however
+// many tasks are already queued behind it — a robot with a deep backlog
+// will look faster than it really is until queued tasks carry their own
+// duration estimate. Flagging this rather than leaving it silently wrong.
+const MAX_QUEUED_TASKS = 4;
+
 function isEligible(robot: RobotState): boolean {
-  return robot.status !== "failed" && !robot.currentTaskId;
+  const queueLength = robot.queuedTaskIds?.length ?? 0;
+  return robot.status !== "failed" && queueLength <= MAX_QUEUED_TASKS;
 }
 
 // All feasible bids for a task, unordered. Useful on its own for
