@@ -165,7 +165,7 @@ export function WarehouseMap({
             ))}
 
             <svg 
-              className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-hidden"
               viewBox={`0 0 ${WAREHOUSE_WIDTH} ${WAREHOUSE_HEIGHT}`}
               preserveAspectRatio="none"
             >
@@ -222,7 +222,8 @@ export function WarehouseMap({
                 <div 
                   key={robot.id}
                   onClick={() => onSelectRobot(isSelected ? null : robot.id)}
-                  className={`absolute flex flex-col items-center justify-center transition-all duration-500 ease-in-out cursor-pointer z-30 group ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
+                  // To enable snapping movement for debugging, use: duration-500 ease-in-out
+                  className={`absolute flex flex-col items-center justify-center transition-all duration-1000 ease-linear cursor-pointer z-30 group ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
                   style={{ 
                     left: `calc(100% * ${robot.position.x}/${WAREHOUSE_WIDTH})`, 
                     top: `calc(100% * ${robot.position.y}/${WAREHOUSE_HEIGHT})`, 

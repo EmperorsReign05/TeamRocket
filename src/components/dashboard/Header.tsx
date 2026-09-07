@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ time }: HeaderProps) {
   return (
-    <header className="h-[72px] border-b border-[#1e293b] flex items-center justify-between px-6 shrink-0 bg-[#0b1121] sticky top-0 z-10">
+    <header className="h-[72px] border-b border-[#1e293b] flex items-center justify-between px-6 shrink-0 bg-[#0b1121] sticky top-0 z-50">
       <div className="flex flex-col justify-center">
         <h1 className="text-xl font-semibold text-white tracking-wide">AMR Fleet Control Dashboard</h1>
         <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Distributed • Edge-AI Powered • Collision-Free • Scalable</p>
