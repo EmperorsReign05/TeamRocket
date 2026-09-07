@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createWarehouseMap, isTraversable, computeCongestion } from "../src/core/map/warehouse";
 import { planPath } from "../src/core/pathfinding/astar";
 import { resolvePIBT } from "../src/core/pathfinding/pibt";
+import { ADDVERB_DYNAMO_100, ROBOT_MODELS, SCOUT_AGILE_2 } from "../src/core/simulation/robotModels";
 import type { Cell, Position, RobotState, WorldState } from "../src/core/types";
 import { mulberry32 } from "./helpers";
 
@@ -113,7 +114,16 @@ describe("STRESS: PIBT at scale on the real warehouse map", () => {
         key = `${pos.x},${pos.y}`;
       } while (used.has(key));
       used.add(key);
-      robots.push({ id: `S${i}`, position: pos, home: pos, battery: 100, status: "moving", path: [], priority: 0 });
+      robots.push({
+        id: `S${i}`,
+        position: pos,
+        home: pos,
+        battery: 100,
+        status: "moving",
+        model: ROBOT_MODELS[i % ROBOT_MODELS.length],
+        path: [],
+        priority: 0,
+      });
     }
 
     let map = computeCongestion(baseMap, robots);
@@ -177,8 +187,8 @@ describe("STRESS: PIBT at scale on the real warehouse map", () => {
     const baseMap = { width, height, cells };
 
     let robots: RobotState[] = [
-      { id: "L0", position: { x: 0, y: 0 }, home: { x: 0, y: 0 }, battery: 100, status: "moving", path: [], priority: 0 },
-      { id: "R0", position: { x: width - 1, y: 0 }, home: { x: width - 1, y: 0 }, battery: 100, status: "moving", path: [], priority: 0 },
+      { id: "L0", position: { x: 0, y: 0 }, home: { x: 0, y: 0 }, battery: 100, status: "moving", model: SCOUT_AGILE_2, path: [], priority: 0 },
+      { id: "R0", position: { x: width - 1, y: 0 }, home: { x: width - 1, y: 0 }, battery: 100, status: "moving", model: ADDVERB_DYNAMO_100, path: [], priority: 0 },
     ];
     const goals: Record<string, Position> = {
       L0: { x: width - 1, y: 0 },
@@ -229,6 +239,7 @@ describe("STRESS: PIBT at scale on the real warehouse map", () => {
         home: { x: i, y: 0 },
         battery: 100,
         status: "moving" as const,
+        model: ROBOT_MODELS[i % ROBOT_MODELS.length],
         path: [] as Position[],
         priority: 0,
       })),
@@ -238,6 +249,7 @@ describe("STRESS: PIBT at scale on the real warehouse map", () => {
         home: { x: width - 1 - i, y: 0 },
         battery: 100,
         status: "moving" as const,
+        model: ROBOT_MODELS[i % ROBOT_MODELS.length],
         path: [] as Position[],
         priority: 0,
       })),

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { Task, WorldState } from '@/core/types';
 import { createInitialWorld } from '@/core/simulation/state';
 import { stepSimulation } from '@/core/simulation/engine';
+import { ROBOT_MODELS } from '@/core/simulation/robotModels';
 import { 
   SidebarNav,
   Header,
@@ -92,6 +93,7 @@ export default function Dashboard() {
         id: taskId,
         pickup,
         dropoff,
+        weight: Math.floor(Math.random() * 80) + 10, // 10-90kg — sometimes exceeds a Scout Agile 2.0's capacity on purpose
         createdAt: prev.tick,
         priority: 1,
         status: 'pending',
@@ -183,6 +185,7 @@ export default function Dashboard() {
             home: pos,
             battery: Math.floor(Math.random() * 30) + 70,
             status: 'idle',
+            model: ROBOT_MODELS[i % ROBOT_MODELS.length],
             path: [],
             priority: 0,
           });

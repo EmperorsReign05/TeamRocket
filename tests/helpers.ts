@@ -1,5 +1,6 @@
 import type { Cell, Position, RobotState, Task, WarehouseMap, WorldState } from "../src/core/types";
 import type { PlannedMove } from "../src/core/pathfinding/pibt";
+import { SCOUT_AGILE_2 } from "../src/core/simulation/robotModels";
 
 export function makeMap(width: number, height: number, blocked: Position[] = []): WarehouseMap {
   const blockedKeys = new Set(blocked.map((p) => `${p.x},${p.y}`));
@@ -29,6 +30,7 @@ export function makeRobot(
     home: overrides.position,
     battery: 100,
     status: "moving",
+    model: SCOUT_AGILE_2,
     path: [],
     priority: 0,
     ...overrides,
