@@ -29,7 +29,7 @@ export type RobotState = {
 
   battery: number;
   status: RobotStatus;
-    model: RobotModel;
+  model: RobotModel;
 
   currentTaskId?: string;
 
@@ -46,7 +46,7 @@ export type RobotModel = {
   payloadCapacity: number;
 };
 
-export type TaskState={
+export type TaskState = {
   current_task: Task;
   queued_tasks: Task[];
 };
@@ -57,12 +57,22 @@ export type Task = {
   pickup: Position;
   dropoff: Position;
 
+  // kg — compared against RobotModel.payloadCapacity when bidding. Every
+  // real task has a weight, so unlike deadline this isn't optional.
+  weight: number;
+
   createdAt: number;
   priority: number;
 
   status: TaskStatus;
 
   assignedRobotId?: string;
+
+  // Absolute simulation TICK (not a wall-clock timestamp) by which the
+  // task should be complete. Optional and additive — existing code/tests
+  // that don't set it are unaffected; the auction treats a missing
+  // deadline as "no urgency signal" rather than requiring one.
+  deadline?: number;
 };
 
 export type Cell = {

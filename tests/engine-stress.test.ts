@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWarehouseMap, computeCongestion, isTraversable } from "../src/core/map/warehouse";
 import { createInitialWorld } from "../src/core/simulation/state";
 import { stepSimulation } from "../src/core/simulation/engine";
+import { ROBOT_MODELS } from "../src/core/simulation/robotModels";
 import type { RobotState, Task, WorldState } from "../src/core/types";
 import { mulberry32 } from "./helpers";
 
@@ -104,7 +105,16 @@ describe("STRESS: engine at higher robot density than the seeded scenario", () =
       }
       if (!placed) continue;
       used.add(key);
-      robots.push({ id: `H${i}`, position: pos, home: pos, battery: 100, status: "idle", path: [], priority: 0 });
+      robots.push({
+        id: `H${i}`,
+        position: pos,
+        home: pos,
+        battery: 100,
+        status: "idle",
+        model: ROBOT_MODELS[i % ROBOT_MODELS.length],
+        path: [],
+        priority: 0,
+      });
     }
 
     // Give roughly half of them an active task so the engine has real work
@@ -115,7 +125,16 @@ describe("STRESS: engine at higher robot density than the seeded scenario", () =
       const pickup = open[Math.floor(rand() * open.length)];
       const dropoff = open[Math.floor(rand() * open.length)];
       const taskId = `HT-${i}`;
-      tasks.push({ id: taskId, pickup, dropoff, createdAt: 0, priority: 1, status: "assigned", assignedRobotId: r.id });
+      tasks.push({
+        id: taskId,
+        pickup,
+        dropoff,
+        weight: 20,
+        createdAt: 0,
+        priority: 1,
+        status: "assigned",
+        assignedRobotId: r.id,
+      });
       robots[i] = { ...r, currentTaskId: taskId, status: "assigned" };
     });
 
