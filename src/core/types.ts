@@ -33,6 +33,12 @@ export type RobotState = {
 
   currentTaskId?: string;
 
+  // Task IDs waiting behind currentTaskId — a robot can bid on and win
+  // new work while still busy, up to a backlog cap (see
+  // src/core/auction/assign.ts's isEligible). Optional/defaults to empty
+  // so existing code that never touches queuing keeps compiling.
+  queuedTaskIds?: string[];
+
   // Intended route, including the current position as path[0].
   // A* (re)plans this; PIBT only ever executes the next step of it.
   path: Position[];
