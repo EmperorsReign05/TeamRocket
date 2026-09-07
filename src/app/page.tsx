@@ -359,9 +359,10 @@ export default function Dashboard() {
 
 
                     {/* Navigable Paths */}
-                    {/* AMR-01 Path */}
-                    <div className="absolute border-l-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 1.5/20)', top: 'calc(100% * 0.5/13)', width: '0', height: 'calc(100% * 4/13)' }}></div>
-                    <div className="absolute border-t-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 1.5/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 4.5/20)', height: '0' }}></div>
+                    {/* AMR-01 Path (Routed through corridor x=3) */}
+                    <div className="absolute border-t-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 1.5/20)', top: 'calc(100% * 0.5/13)', width: 'calc(100% * 2/20)', height: '0' }}></div>
+                    <div className="absolute border-l-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 3.5/20)', top: 'calc(100% * 0.5/13)', width: '0', height: 'calc(100% * 4/13)' }}></div>
+                    <div className="absolute border-t-2 border-[#3b82f6] border-dashed opacity-70" style={{ left: 'calc(100% * 3.5/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 3/20)', height: '0' }}></div>
                     
                     {/* AMR-02 Path (Current path) */}
                     <div className="absolute border-t-2 border-[#f59e0b] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 3.5/20)', height: '0' }}></div>
