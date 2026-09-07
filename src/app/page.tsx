@@ -67,6 +67,8 @@ export default function Dashboard() {
   const [logs, setLogs] = useState<LogEntry[]>(INITIAL_LOGS);
   const [isSimulating, setIsSimulating] = useState(false);
   const [stats, setStats] = useState({ total: 12, completed: 9, collisions: 0 });
+  const [robotCount, setRobotCount] = useState(3);
+  const [shelfColCount, setShelfColCount] = useState(6);
   
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -127,11 +129,48 @@ export default function Dashboard() {
     setTasks(INITIAL_TASKS);
     setStats({ total: 12, completed: 9, collisions: 0 });
     setIsSimulating(false);
+    setRobotCount(3);
+    setShelfColCount(6);
     addLog('System state reset to initial conditions', 'info');
   };
 
+  const handleRobotCountChange = (newCount: number) => {
+    setRobotCount(newCount);
+    setRobots(prev => {
+      if (newCount > prev.length) {
+        const newRobots = [...prev];
+        const safeSpawns = [
+          {x: 3, y: 4},   // between Col 1 & 2, corridor y=4
+          {x: 9, y: 8},   // between Col 3 & 4, corridor y=8
+          {x: 14, y: 4},  // between Col 4 & 5, corridor y=4
+          {x: 3, y: 12},  // bottom corridor
+          {x: 9, y: 12},  // bottom corridor
+          {x: 14, y: 12}, // bottom corridor
+          {x: 17, y: 4}   // between Col 5 & 6, corridor y=4
+        ];
+        
+        for (let i = prev.length; i < newCount; i++) {
+          const spawnIdx = i - 3; // 3 initial robots
+          const pos = (spawnIdx >= 0 && spawnIdx < safeSpawns.length) ? safeSpawns[spawnIdx] : { x: 0, y: 12 };
+          
+          newRobots.push({
+            id: `AMR-${(i + 1).toString().padStart(2, '0')}`,
+            color: ['#a855f7', '#ec4899', '#06b6d4', '#eab308', '#6366f1'][i % 5],
+            pos: pos,
+            battery: Math.floor(Math.random() * 40) + 60,
+            status: 'Idle'
+          });
+        }
+        return newRobots;
+      } else if (newCount < prev.length) {
+        return prev.slice(0, newCount);
+      }
+      return prev;
+    });
+  };
+
   // Shelf blocks configuration: [x, y, width, height]
-  const shelfBlocks = [
+  const allShelfBlocks = [
     // Col 1 (x=1,2)
     [1, 1, 2, 3], [1, 9, 2, 3],
     // Col 2 (x=4,5)
@@ -145,6 +184,12 @@ export default function Dashboard() {
     // Col 6 (x=18,19)
     [18, 1, 2, 3], [18, 5, 2, 3], [18, 9, 2, 3],
   ];
+
+  const shelfCols = [1, 4, 7, 10, 15, 18];
+  const displayedShelfBlocks = allShelfBlocks.filter(b => {
+    const colIndex = shelfCols.indexOf(b[0]);
+    return colIndex !== -1 && colIndex < shelfColCount;
+  });
 
   const renderShelf = (x: number, y: number, w: number, h: number) => {
     return (
@@ -171,10 +216,10 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0b1121] text-slate-200 overflow-hidden font-sans text-sm selection:bg-blue-500/30">
+    <div className="flex min-h-screen bg-[#0b1121] text-slate-200 font-sans text-sm selection:bg-blue-500/30">
       
       {/* Sidebar */}
-      <div className="w-[72px] bg-[#0b1121] border-r border-[#1e293b] flex flex-col items-center py-6 gap-8 shrink-0 z-20">
+      <div className="w-[72px] bg-[#0b1121] border-r border-[#1e293b] flex flex-col items-center py-6 gap-8 shrink-0 z-20 sticky top-0 h-screen">
         <div className="w-10 h-10 bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg border border-[#334155]">
           <span className="opacity-80">R</span>
         </div>
@@ -199,7 +244,7 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col min-w-0 bg-[#0f172a]">
         
         {/* Header */}
-        <header className="h-[72px] border-b border-[#1e293b] flex items-center justify-between px-6 shrink-0 bg-[#0b1121]">
+        <header className="h-[72px] border-b border-[#1e293b] flex items-center justify-between px-6 shrink-0 bg-[#0b1121] sticky top-0 z-10">
           <div className="flex flex-col justify-center">
             <h1 className="text-xl font-semibold text-white tracking-wide">AMR Fleet Control Dashboard</h1>
             <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">Distributed • Edge-AI Powered • Collision-Free • Scalable</p>
@@ -220,13 +265,13 @@ export default function Dashboard() {
         </header>
 
         {/* Dashboard Layout */}
-        <div className="flex-1 p-4 flex gap-4 overflow-hidden">
+        <div className="flex-1 p-4 flex gap-4">
           
           {/* Left Column (70%) */}
-          <div className="w-[72%] flex flex-col gap-4 min-w-0 h-full">
+          <div className="w-[72%] flex flex-col gap-4 min-w-0">
             
             {/* Map Container */}
-            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col flex-1 overflow-hidden shadow-lg relative">
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col overflow-hidden shadow-lg relative min-h-[550px]">
               
               {/* Map Header */}
               <div className="h-12 border-b border-[#1e293b] flex justify-between items-center px-5 bg-[#0b1121]/60 shrink-0 z-10">
@@ -267,7 +312,7 @@ export default function Dashboard() {
                     ))}
 
                     {/* Professional Shelves rendering */}
-                    {shelfBlocks.map(block => renderShelf(block[0], block[1], block[2], block[3]))}
+                    {displayedShelfBlocks.map(block => renderShelf(block[0], block[1], block[2], block[3]))}
 
                     {/* Intersections */}
                     <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
@@ -278,11 +323,11 @@ export default function Dashboard() {
                       <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
                       <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
                     </div>
-                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 13/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 14/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
                       <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
                       <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
                     </div>
-                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 13/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
+                    <div className="absolute border border-slate-600 flex items-center justify-center" style={{ left: 'calc(100% * 14/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
                       <div className="w-[1px] h-full bg-slate-600 rotate-45 absolute"></div>
                       <div className="w-[1px] h-full bg-slate-600 -rotate-45 absolute"></div>
                     </div>
@@ -291,10 +336,10 @@ export default function Dashboard() {
                     <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 1/20)', top: 'calc(100% * 5/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
                        <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W1</span>
                     </div>
-                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
+                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 5/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
                        <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W2</span>
                     </div>
-                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
+                    <div className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" style={{ left: 'calc(100% * 12/20)', top: 'calc(100% * 9/13)', width: 'calc(100% * 2/20)', height: 'calc(100% * 3/13)' }}>
                        <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>W3</span>
                     </div>
 
@@ -323,10 +368,10 @@ export default function Dashboard() {
                     <div className="absolute border-l-2 border-[#f59e0b] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 4.5/13)', width: '0', height: 'calc(100% * 4/13)' }}></div>
                     
                     {/* AMR-02 Ghost Path (Considered but discarded) */}
-                    <div className="absolute border-t-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 10/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 3.5/20)', height: '0' }}></div>
-                    <div className="absolute border-l-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 13.5/20)', top: 'calc(100% * 4.5/13)', width: '0', height: 'calc(100% * 3.5/13)' }}></div>
+                    <div className="absolute border-t-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 10/20)', top: 'calc(100% * 4.5/13)', width: 'calc(100% * 4.5/20)', height: '0' }}></div>
+                    <div className="absolute border-l-2 border-[#ef4444] border-dotted opacity-60" style={{ left: 'calc(100% * 14.5/20)', top: 'calc(100% * 4.5/13)', width: '0', height: 'calc(100% * 3.5/13)' }}></div>
                     {/* Ghost Path X marker */}
-                    <div className="absolute flex items-center justify-center opacity-60" style={{ left: 'calc(100% * 13.3/20)', top: 'calc(100% * 7.8/13)' }}>
+                    <div className="absolute flex items-center justify-center opacity-60" style={{ left: 'calc(100% * 14.3/20)', top: 'calc(100% * 7.8/13)' }}>
                       <XOctagon size={12} className="text-[#ef4444]" />
                     </div>
 
@@ -359,7 +404,7 @@ export default function Dashboard() {
             </div>
 
             {/* Bottom Panel (Fixed Height) */}
-            <div className="h-[120px] shrink-0 flex gap-4">
+            <div className="h-[145px] shrink-0 flex gap-4">
                 
                 {/* Control Panel */}
                 <div className="flex-1 bg-[#131c31] p-4 rounded-xl border border-[#1e293b] flex flex-col justify-between shadow-lg">
@@ -387,6 +432,18 @@ export default function Dashboard() {
                     <button onClick={handleReset} className="bg-[#1e293b] hover:bg-[#334155] border border-[#334155] text-slate-300 px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors hover:-translate-y-0.5 active:translate-y-0">
                       <RefreshCw size={14} strokeWidth={2.5} /> Reset
                     </button>
+                  </div>
+
+                  {/* Environment Sliders */}
+                  <div className="mt-3 pt-3 border-t border-[#1e293b] flex gap-6">
+                    <div className="flex-1 flex items-center gap-3">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap w-20">Robots ({robotCount})</label>
+                      <input type="range" min="1" max="10" value={robotCount} onChange={e => handleRobotCountChange(parseInt(e.target.value))} className="w-full h-1 bg-[#1e293b] rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400" />
+                    </div>
+                    <div className="flex-1 flex items-center gap-3">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap w-20">Shelves ({shelfColCount})</label>
+                      <input type="range" min="0" max="6" value={shelfColCount} onChange={e => setShelfColCount(parseInt(e.target.value))} className="w-full h-1 bg-[#1e293b] rounded-lg appearance-none cursor-pointer accent-[#22c55e] hover:accent-[#4ade80]" />
+                    </div>
                   </div>
                 </div>
 
@@ -433,7 +490,7 @@ export default function Dashboard() {
           </div>
 
           {/* Right Column (28%) */}
-          <div className="w-[28%] flex flex-col gap-4 min-w-0 h-full">
+          <div className="w-[28%] flex flex-col gap-4 min-w-0">
             
             {/* Fleet Status */}
             <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shrink-0 shadow-lg">
@@ -490,7 +547,7 @@ export default function Dashboard() {
             </div>
 
             {/* Event Log */}
-            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex-1 flex flex-col min-h-0 shadow-lg">
+            <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shadow-lg max-h-[500px]">
               <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40 shrink-0">
                 <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Event Log</h3>
                 <span className="flex items-center gap-2 text-[10px] text-[#22c55e] font-bold tracking-wider uppercase">
