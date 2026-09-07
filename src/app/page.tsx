@@ -1,24 +1,134 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, ListTodo, Car, Map, BarChart3, Settings, 
   Plus, Play, AlertTriangle, XOctagon, AlertCircle, RefreshCw,
   BatteryFull, BatteryMedium, CheckCircle2, Clock, TrendingUp
 } from 'lucide-react';
 
+// --- MOCK DATA & TYPES (Backend team will replace these) ---
+
+type RobotStatus = {
+  id: string;
+  color: string;
+  pos: { x: number; y: number };
+  battery: number;
+  status: string;
+};
+
+type TaskStatus = {
+  id: string;
+  desc: string;
+  robot: string;
+  robotColor: string;
+  status: 'In Progress' | 'Assigned' | 'Pending';
+};
+
+type LogEntry = {
+  time: string;
+  text: string;
+  type: 'info' | 'warning' | 'error';
+};
+
+const INITIAL_ROBOTS: RobotStatus[] = [
+  { id: 'AMR-01', color: '#3b82f6', pos: { x: 1, y: 0 }, battery: 87, status: 'Docked (P1)' },
+  { id: 'AMR-02', color: '#f59e0b', pos: { x: 10, y: 4 }, battery: 62, status: 'En route to T-102' },
+  { id: 'AMR-03', color: '#22c55e', pos: { x: 6, y: 8 }, battery: 91, status: 'Waiting (W2)' },
+];
+
+const INITIAL_TASKS: TaskStatus[] = [
+  { id: 'T-102', desc: 'Shelf A3 → B7', robot: 'AMR-02', robotColor: '#f59e0b', status: 'In Progress' },
+  { id: 'T-103', desc: 'Shelf C1 → D2', robot: 'AMR-03', robotColor: '#22c55e', status: 'Assigned' },
+  { id: 'T-104', desc: 'Shelf B6 → A1', robot: 'Unassigned', robotColor: '#64748b', status: 'Pending' },
+];
+
+const INITIAL_LOGS: LogEntry[] = [
+  { time: '14:32:00', text: 'AMR-01 docked at P1', type: 'info' },
+  { time: '14:31:45', text: 'AMR-02 reserved i05 (t=12-14s)', type: 'info' },
+  { time: '14:31:12', text: 'AMR-03 waiting at W2 (aisle busy)', type: 'warning' },
+  { time: '14:30:05', text: 'Task T-102 assigned to AMR-02', type: 'info' },
+  { time: '14:29:50', text: 'AMR-03 reached waiting zone W2', type: 'info' },
+  { time: '14:28:30', text: 'Path planned for AMR-03', type: 'info' },
+  { time: '14:27:10', text: 'Task T-103 created', type: 'info' },
+  { time: '14:26:05', text: 'AMR-02 passed intersection i08', type: 'info' },
+  { time: '14:25:00', text: 'System initialized', type: 'info' },
+];
+
+// -----------------------------------------------------------
+
+
 export default function Dashboard() {
   const [time, setTime] = useState<string>('');
   
+  // State for components to show they are functional
+  const [robots, setRobots] = useState<RobotStatus[]>(INITIAL_ROBOTS);
+  const [tasks, setTasks] = useState<TaskStatus[]>(INITIAL_TASKS);
+  const [logs, setLogs] = useState<LogEntry[]>(INITIAL_LOGS);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [stats, setStats] = useState({ total: 12, completed: 9, collisions: 0 });
+  
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Update time dynamically
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('en-GB', { hour12: false }) + '   Mon, 24 Feb 2025');
+      const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
+      const dateString = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      setTime(`${timeString}   ${dateString}`);
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-scroll logs
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  // Action Handlers
+  const addLog = (text: string, type: 'info' | 'warning' | 'error' = 'info') => {
+    const now = new Date();
+    setLogs(prev => [...prev, { time: now.toLocaleTimeString('en-GB', { hour12: false }), text, type }]);
+  };
+
+  const handleCreateTask = () => {
+    addLog('Manual task created from UI', 'info');
+    setStats(prev => ({ ...prev, total: prev.total + 1 }));
+  };
+
+  const handleToggleSimulation = () => {
+    if (isSimulating) {
+      addLog('Simulation paused', 'warning');
+    } else {
+      addLog('Simulation started', 'info');
+    }
+    setIsSimulating(!isSimulating);
+  };
+
+  const handleSimulateConflict = () => {
+    addLog('Simulated conflict triggered at i05', 'error');
+    setStats(prev => ({ ...prev, collisions: prev.collisions + 1 }));
+  };
+  
+  const handleSimulateDeadlock = () => {
+    addLog('Deadlock detected between AMR-02 and AMR-03', 'error');
+  };
+
+  const handleFailAMR = () => {
+    addLog('AMR-02 failure simulated. Route replanning...', 'error');
+    setRobots(prev => prev.map(r => r.id === 'AMR-02' ? { ...r, status: 'ERROR', color: '#ef4444' } : r));
+  };
+
+  const handleReset = () => {
+    setRobots(INITIAL_ROBOTS);
+    setTasks(INITIAL_TASKS);
+    setStats({ total: 12, completed: 9, collisions: 0 });
+    setIsSimulating(false);
+    addLog('System state reset to initial conditions', 'info');
+  };
 
   // Shelf blocks configuration: [x, y, width, height]
   const shelfBlocks = [
@@ -77,7 +187,7 @@ export default function Dashboard() {
             { icon: BarChart3, label: 'Analytics' },
             { icon: Settings, label: 'Settings' }
           ].map((item, i) => (
-            <div key={i} className={`flex flex-col items-center gap-1.5 cursor-pointer w-full py-3 ${item.active ? 'text-blue-500 bg-blue-500/10 border-l-2 border-blue-500' : 'text-slate-500 hover:text-slate-300 border-l-2 border-transparent'}`}>
+            <div key={i} onClick={() => addLog(`Navigated to ${item.label}`, 'info')} className={`flex flex-col items-center gap-1.5 cursor-pointer w-full py-3 transition-colors ${item.active ? 'text-blue-500 bg-blue-500/10 border-l-2 border-blue-500' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30 border-l-2 border-transparent'}`}>
               <item.icon size={20} strokeWidth={item.active ? 2.5 : 2} />
               <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </div>
@@ -104,7 +214,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right text-xs text-slate-400 font-mono flex flex-col items-end gap-1">
               <span className="text-[11px] font-sans font-medium text-slate-400 tracking-wide">Time & Date</span>
-              <span className="text-slate-300 tracking-wider font-mono">{time || '14:32:17   Mon, 24 Feb 2025'}</span>
+              <span className="text-slate-300 tracking-wider font-mono">{time || '...'}</span>
             </div>
           </div>
         </header>
@@ -143,7 +253,7 @@ export default function Dashboard() {
                      gridTemplateRows: 'repeat(13, minmax(0, 1fr))',
                      gap: '1px'
                  }}>
-                    {/* Grid Background Lines (gives the graph look) */}
+                    {/* Grid Background Lines */}
                     {Array.from({ length: 260 }).map((_, i) => (
                         <div key={i} className="border border-[#1e293b]/50"></div>
                     ))}
@@ -224,25 +334,25 @@ export default function Dashboard() {
                     <div className="absolute border-l-2 border-[#22c55e] border-dashed opacity-80" style={{ left: 'calc(100% * 6.5/20)', top: 'calc(100% * 8.5/13)', width: '0', height: 'calc(100% * 3.5/13)' }}></div>
 
 
-                    {/* Robots */}
-                    {/* AMR-01 */}
-                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 1/20)', top: 'calc(100% * 1/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
-                       <div className="w-[50%] h-[50%] rounded-full bg-[#3b82f6] shadow-[0_0_12px_#3b82f6] relative z-20"></div>
-                       <span className="text-[9px] text-white mt-1 font-bold absolute top-full">AMR-01</span>
-                    </div>
-
-                    {/* AMR-02 */}
-                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 10/20)', top: 'calc(100% * 4/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
-                       <div className="w-[50%] h-[50%] rounded-full bg-[#f59e0b] shadow-[0_0_15px_#f59e0b] relative z-20 animate-pulse"></div>
-                       <span className="text-[9px] text-white mt-1 font-bold absolute bottom-full">AMR-02</span>
-                    </div>
-
-                    {/* AMR-03 */}
-                    <div className="absolute flex flex-col items-center justify-center" style={{ left: 'calc(100% * 6/20)', top: 'calc(100% * 8/13)', width: 'calc(100% * 1/20)', height: 'calc(100% * 1/13)' }}>
-                       <div className="w-[50%] h-[50%] rounded-full bg-[#22c55e] shadow-[0_0_12px_#22c55e] relative z-20"></div>
-                       <span className="text-[9px] text-white mt-1 font-bold absolute left-full ml-1 whitespace-nowrap">AMR-03</span>
-                    </div>
-
+                    {/* Dynamic Robots (Using State) */}
+                    {robots.map((robot) => (
+                      <div 
+                        key={robot.id}
+                        className="absolute flex flex-col items-center justify-center transition-all duration-500 ease-in-out" 
+                        style={{ 
+                          left: `calc(100% * ${robot.pos.x}/20)`, 
+                          top: `calc(100% * ${robot.pos.y}/13)`, 
+                          width: 'calc(100% * 1/20)', 
+                          height: 'calc(100% * 1/13)' 
+                        }}
+                      >
+                         <div 
+                           className={`w-[50%] h-[50%] rounded-full relative z-20 ${robot.status === 'ERROR' ? 'animate-ping' : ''}`} 
+                           style={{ backgroundColor: robot.color, boxShadow: `0 0 12px ${robot.color}` }}
+                         ></div>
+                         <span className="text-[9px] text-white mt-1 font-bold absolute top-full whitespace-nowrap">{robot.id}</span>
+                      </div>
+                    ))}
 
                  </div>
               </div>
@@ -255,26 +365,26 @@ export default function Dashboard() {
                 <div className="flex-1 bg-[#131c31] p-4 rounded-xl border border-[#1e293b] flex flex-col justify-between shadow-lg">
                   <h3 className="font-semibold text-slate-200 text-[13px] tracking-wide mb-3">Control Panel</h3>
                   <div className="flex flex-wrap gap-2.5">
-                    <button className="bg-[#3b82f6] hover:bg-blue-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-blue-500/20">
+                    <button onClick={handleCreateTask} className="bg-[#3b82f6] hover:bg-blue-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0">
                       <Plus size={14} strokeWidth={2.5} /> Create Task
                     </button>
-                    <button className="bg-[#22c55e] hover:bg-green-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-green-500/20">
-                      <Play size={14} strokeWidth={2.5} /> Start Simulation
+                    <button onClick={handleToggleSimulation} className={`hover:brightness-110 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 ${isSimulating ? 'bg-amber-500 shadow-amber-500/20' : 'bg-[#22c55e] shadow-green-500/20'}`}>
+                      <Play size={14} strokeWidth={2.5} /> {isSimulating ? 'Pause Sim' : 'Start Sim'}
                     </button>
-                    <button className="bg-[#f59e0b] hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-amber-500/20">
-                      <AlertTriangle size={14} strokeWidth={2.5} /> Simulate Conflict
+                    <button onClick={handleSimulateConflict} className="bg-[#f59e0b] hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-amber-500/20 hover:-translate-y-0.5 active:translate-y-0">
+                      <AlertTriangle size={14} strokeWidth={2.5} /> Sim Conflict
                     </button>
-                    <button className="bg-[#ef4444] hover:bg-red-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-red-500/20">
-                      <XOctagon size={14} strokeWidth={2.5} /> Simulate Deadlock
+                    <button onClick={handleSimulateDeadlock} className="bg-[#ef4444] hover:bg-red-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-red-500/20 hover:-translate-y-0.5 active:translate-y-0">
+                      <XOctagon size={14} strokeWidth={2.5} /> Sim Deadlock
                     </button>
-                    <button className="bg-[#475569] hover:bg-slate-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                    <button onClick={handleFailAMR} className="bg-[#475569] hover:bg-slate-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors hover:-translate-y-0.5 active:translate-y-0">
                       <AlertCircle size={14} strokeWidth={2.5} /> Fail AMR-02
                     </button>
-                    <button className="bg-[#8b5cf6] hover:bg-purple-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-purple-500/20">
+                    <button onClick={() => addLog('Aisle block simulated', 'warning')} className="bg-[#8b5cf6] hover:bg-purple-600 text-white px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-lg shadow-purple-500/20 hover:-translate-y-0.5 active:translate-y-0">
                       <XOctagon size={14} strokeWidth={2.5} /> Block Aisle
                     </button>
                     <div className="flex-1"></div>
-                    <button className="bg-[#1e293b] hover:bg-[#334155] border border-[#334155] text-slate-300 px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+                    <button onClick={handleReset} className="bg-[#1e293b] hover:bg-[#334155] border border-[#334155] text-slate-300 px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors hover:-translate-y-0.5 active:translate-y-0">
                       <RefreshCw size={14} strokeWidth={2.5} /> Reset
                     </button>
                   </div>
@@ -282,26 +392,26 @@ export default function Dashboard() {
 
                 {/* Mini Metrics */}
                 <div className="w-[480px] bg-[#131c31] rounded-xl border border-[#1e293b] flex shadow-lg divide-x divide-[#1e293b]">
-                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1 transition-all">
                       <div className="flex items-center justify-between text-slate-400">
                          <span className="text-[10px] font-semibold uppercase tracking-wider">Total Tasks</span>
                          <ListTodo size={14} />
                       </div>
-                      <div className="text-2xl font-bold text-white mt-1">12</div>
+                      <div className="text-2xl font-bold text-white mt-1">{stats.total}</div>
                    </div>
-                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1 transition-all">
                       <div className="flex items-center justify-between text-[#22c55e]">
                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Completed</span>
                          <div className="w-5 h-5 rounded-full bg-[#22c55e]/20 flex items-center justify-center"><CheckCircle2 size={12} strokeWidth={3} /></div>
                       </div>
-                      <div className="text-2xl font-bold text-white mt-1">9</div>
+                      <div className="text-2xl font-bold text-white mt-1">{stats.completed}</div>
                    </div>
-                   <div className="flex-1 p-3 flex flex-col justify-center gap-1">
+                   <div className="flex-1 p-3 flex flex-col justify-center gap-1 transition-all">
                       <div className="flex items-center justify-between text-[#ef4444]">
                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Collisions</span>
                          <div className="w-5 h-5 rounded-full bg-[#ef4444]/20 flex items-center justify-center"><AlertTriangle size={12} strokeWidth={3} /></div>
                       </div>
-                      <div className="text-2xl font-bold text-white mt-1">0</div>
+                      <div className="text-2xl font-bold text-white mt-1">{stats.collisions}</div>
                    </div>
                    <div className="flex-1 p-3 flex flex-col justify-center gap-1">
                       <div className="flex items-center justify-between text-[#3b82f6]">
@@ -329,54 +439,25 @@ export default function Dashboard() {
             <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shrink-0 shadow-lg">
               <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40">
                 <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Fleet Status</h3>
-                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">3 / 3 Online</span>
+                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">{robots.filter(r=>r.status !== 'ERROR').length} / {robots.length} Online</span>
               </div>
               <div className="p-3 flex flex-col gap-1.5">
                 
-                {/* AMR 01 */}
-                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#3b82f6] shadow-[0_0_10px_#3b82f6]"></div>
-                    <div>
-                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-01</div>
-                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">Docked (P1)</div>
+                {robots.map(r => (
+                  <div key={r.id} className="px-3 py-2 rounded-lg flex items-center justify-between transition-colors hover:bg-slate-800/30">
+                    <div className="flex items-center gap-4">
+                      <div className="w-3.5 h-3.5 rounded-full shadow-lg" style={{ backgroundColor: r.color, boxShadow: `0 0 10px ${r.color}` }}></div>
+                      <div>
+                        <div className="font-semibold text-sm text-slate-200 tracking-wide">{r.id}</div>
+                        <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">{r.status}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
+                      {r.battery}%
+                      {r.battery > 80 ? <BatteryFull size={22} className="text-[#22c55e]" strokeWidth={1.5} /> : <BatteryMedium size={22} className="text-[#f59e0b]" strokeWidth={1.5} />}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
-                    87%
-                    <BatteryFull size={22} className="text-[#22c55e]" strokeWidth={1.5} />
-                  </div>
-                </div>
-
-                {/* AMR 02 */}
-                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#f59e0b] shadow-[0_0_10px_#f59e0b]"></div>
-                    <div>
-                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-02</div>
-                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">En route to T-102</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
-                    62%
-                    <BatteryMedium size={22} className="text-[#f59e0b]" strokeWidth={1.5} />
-                  </div>
-                </div>
-
-                {/* AMR 03 */}
-                <div className="px-3 py-2 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]"></div>
-                    <div>
-                      <div className="font-semibold text-sm text-slate-200 tracking-wide">AMR-03</div>
-                      <div className="text-[11px] text-slate-400 font-medium mt-0.5 tracking-wide">Waiting (W2)</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-[13px] text-slate-200 font-mono font-medium">
-                    91%
-                    <BatteryFull size={22} className="text-[#22c55e]" strokeWidth={1.5} />
-                  </div>
-                </div>
+                ))}
 
               </div>
             </div>
@@ -385,42 +466,25 @@ export default function Dashboard() {
             <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shrink-0 shadow-lg">
               <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40">
                 <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Active Tasks</h3>
-                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">2 Active</span>
+                <span className="text-[11px] text-[#22c55e] font-semibold tracking-wide uppercase">{tasks.filter(t => t.status !== 'Pending').length} Active</span>
               </div>
               <div className="p-2 flex flex-col">
                 
-                <div className="px-4 py-3 border-b border-[#1e293b]/50 flex justify-between items-center">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-102</span>
-                        <span className="text-[11px] text-slate-400">Shelf A3 → B7</span>
+                {tasks.map(t => (
+                  <div key={t.id} className={`px-4 py-3 border-b border-[#1e293b]/50 flex justify-between items-center ${t.status === 'Pending' ? 'opacity-60' : ''}`}>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                          <span className="font-semibold text-sm text-slate-200 tracking-wide">{t.id}</span>
+                          <span className="text-[11px] text-slate-400">{t.desc}</span>
+                      </div>
+                      <div className="text-[11px] font-bold tracking-wider" style={{ color: t.robotColor }}>{t.robot}</div>
                     </div>
-                    <div className="text-[11px] text-[#f59e0b] font-bold tracking-wider">AMR-02</div>
+                    
+                    {t.status === 'In Progress' && <span className="bg-[#1e3a8a]/40 text-[#60a5fa] border border-[#1e3a8a] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">In Progress</span>}
+                    {t.status === 'Assigned' && <span className="bg-[#14532d]/40 text-[#4ade80] border border-[#14532d] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Assigned</span>}
+                    {t.status === 'Pending' && <span className="bg-[#1e293b]/60 text-slate-400 border border-[#334155] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Pending</span>}
                   </div>
-                  <span className="bg-[#1e3a8a]/40 text-[#60a5fa] border border-[#1e3a8a] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">In Progress</span>
-                </div>
-
-                <div className="px-4 py-3 border-b border-[#1e293b]/50 flex justify-between items-center">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-103</span>
-                        <span className="text-[11px] text-slate-400">Shelf C1 → D2</span>
-                    </div>
-                    <div className="text-[11px] text-[#22c55e] font-bold tracking-wider">AMR-03</div>
-                  </div>
-                  <span className="bg-[#14532d]/40 text-[#4ade80] border border-[#14532d] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Assigned</span>
-                </div>
-
-                <div className="px-4 py-3 flex justify-between items-center opacity-60">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                        <span className="font-semibold text-sm text-slate-200 tracking-wide">T-104</span>
-                        <span className="text-[11px] text-slate-400">Shelf B6 → A1</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-bold tracking-wider">Unassigned</div>
-                  </div>
-                  <span className="bg-[#1e293b]/60 text-slate-400 border border-[#334155] text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider">Pending</span>
-                </div>
+                ))}
 
               </div>
             </div>
@@ -435,24 +499,16 @@ export default function Dashboard() {
                 </span>
               </div>
               <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2 text-[12px] font-medium tracking-wide">
-                {[
-                  { time: '14:32', text: 'AMR-01 docked at P1', type: 'info' },
-                  { time: '14:31', text: 'AMR-02 reserved i05 (t=12-14s)', type: 'info' },
-                  { time: '14:31', text: 'AMR-03 waiting at W2 (aisle busy)', type: 'warning' },
-                  { time: '14:30', text: 'Task T-102 assigned to AMR-02', type: 'info' },
-                  { time: '14:29', text: 'AMR-03 reached waiting zone W2', type: 'info' },
-                  { time: '14:28', text: 'Path planned for AMR-03', type: 'info' },
-                  { time: '14:27', text: 'Task T-103 created', type: 'info' },
-                  { time: '14:26', text: 'AMR-02 passed intersection i08', type: 'info' },
-                  { time: '14:25', text: 'System initialized', type: 'info' },
-                ].map((log, idx) => (
+                {[...logs].reverse().map((log, idx) => (
                   <div key={idx} className="flex gap-4 items-start opacity-80 hover:opacity-100 transition-opacity pb-2">
                     <span className="text-slate-500 font-mono text-[11px] shrink-0 pt-0.5">{log.time}</span>
-                    <span className={`${log.type === 'warning' ? 'text-amber-400' : 'text-slate-300'}`}>
+                    <span className={`${log.type === 'warning' ? 'text-amber-400' : log.type === 'error' ? 'text-red-400' : 'text-slate-300'}`}>
                       {log.text}
                     </span>
                   </div>
                 ))}
+                {/* Invisible element to auto-scroll to bottom if not reversed, but we reversed it so newest is on top */}
+                <div ref={logEndRef} />
               </div>
             </div>
 
