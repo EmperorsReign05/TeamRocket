@@ -211,7 +211,7 @@ export default function Dashboard() {
               shelfColCount={shelfColCount}
             />
 
-            <div className="h-[145px] shrink-0 flex gap-4">
+            <div className="shrink-0 flex flex-col gap-4">
               <ControlPanel 
                 isSimulating={isSimulating}
                 robotCount={robotCount}

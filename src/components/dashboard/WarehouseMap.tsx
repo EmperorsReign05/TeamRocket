@@ -81,7 +81,7 @@ export function WarehouseMap({
       </div>
       
       {/* Actual Map Grid */}
-      <div className="flex-1 bg-[#0f172a] p-4 flex items-center justify-center overflow-hidden">
+      <div className="flex-1 bg-[#0f172a] pt-8 pl-8 pr-4 pb-4 flex items-center justify-center overflow-hidden">
          <div className="warehouse-map w-full h-full relative" style={{ 
              display: 'grid', 
              gridTemplateColumns: `repeat(${WAREHOUSE_WIDTH}, minmax(0, 1fr))`, 
@@ -90,15 +90,15 @@ export function WarehouseMap({
          }}>
             {/* Grid Background Lines */}
             {Array.from({ length: WAREHOUSE_WIDTH * WAREHOUSE_HEIGHT }).map((_, i) => (
-                <div key={i} className="border border-[#1e293b]/50"></div>
+                <div key={i} className="border border-dotted border-[#334155]/60"></div>
             ))}
 
             {/* Coordinate Labels */}
             {Array.from({ length: WAREHOUSE_WIDTH }).map((_, i) => (
-                <div key={`col-${i}`} className="absolute top-[-20px] text-[10px] text-slate-500 font-mono" style={{ left: `calc((100%/${WAREHOUSE_WIDTH}) * ${i} + (100%/(${WAREHOUSE_WIDTH} * 2)) - 4px)` }}>{i}</div>
+                <div key={`col-${i}`} className="absolute top-[-22px] text-[10px] text-slate-400 font-mono" style={{ left: `calc((100%/${WAREHOUSE_WIDTH}) * ${i} + (100%/(${WAREHOUSE_WIDTH} * 2)) - 4px)` }}>{i}</div>
             ))}
             {Array.from({ length: WAREHOUSE_HEIGHT }).map((_, i) => (
-                <div key={`row-${i}`} className="absolute left-[-20px] text-[10px] text-slate-500 font-mono" style={{ top: `calc((100%/${WAREHOUSE_HEIGHT}) * ${i} + (100%/(${WAREHOUSE_HEIGHT} * 2)) - 6px)` }}>{i}</div>
+                <div key={`row-${i}`} className="absolute left-[-22px] text-[10px] text-slate-400 font-mono" style={{ top: `calc((100%/${WAREHOUSE_HEIGHT}) * ${i} + (100%/(${WAREHOUSE_HEIGHT} * 2)) - 6px)` }}>{i}</div>
             ))}
 
             {displayedShelfBlocks.map(block => renderShelf(block[0], block[1], block[2], block[3]))}
