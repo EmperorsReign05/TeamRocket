@@ -70,10 +70,24 @@ export type WarehouseMap = {
   cells: Cell[];
 };
 
+// Cumulative pathfinding/coordination counters, carried on WorldState so the
+// dashboard can read them without reaching into engine internals. The
+// simulation engine adds each tick's PIBT/A* activity into these running
+// totals — see src/core/simulation/engine.ts.
+export type PathfindingMetrics = {
+  replans: number;
+  conflictCount: number;
+  waitMoves: number;
+  inheritedPriorities: number;
+  backtracks: number;
+};
+
 export type WorldState = {
   tick: number;
 
   map: WarehouseMap;
   robots: RobotState[];
   tasks: Task[];
+
+  metrics: PathfindingMetrics;
 };
