@@ -34,14 +34,14 @@ An Autonomous Mobile Robot (AMR) Fleet Control System consisting of a robust Typ
 
 ### 🔄 Current
 * **Frontend (Alman / Pranav / Om)**
-  - [ ] **Alman/Pranav**: Connect dashboard UI to the core simulation engine to replace mocked state.
+  - [x] **Alman/Pranav**: Connect dashboard UI to the core simulation engine to replace mocked state.
   - [ ] **Alman/Pranav**: Enhance dynamic animations for robot transitions and map scaling.
   - [ ] **Om**: Review component accessibility and add minor UI tooltips for the Control Panel.
 * **Backend logic (Manavi / Pushpendra)**
   *(Note: Backend team to fill this out in more detail as algorithms are developed)*
   - [ ] Implement the core `assignTask` auction system logic.
-  - [ ] Complete implementation of A* pathfinding and PIBT safe-move resolution.
-  - [ ] Connect `stepSimulation` engine lifecycle hooks.
+  - [x] Complete implementation of A* pathfinding and PIBT safe-move resolution.
+  - [x] Connect `stepSimulation` engine lifecycle hooks.
 
 ### ⏳ Remaining
 * **Integration & Testing**
