@@ -1,5 +1,7 @@
 # Team Rocket — AMR Fleet Control Dashboard
 
+**Live demo:** [amr-edge-ai.vercel.app](https://amr-edge-ai.vercel.app/)
+
 A distributed, congestion-aware **Autonomous Mobile Robot (AMR)** warehouse
 fleet simulation and control dashboard. `src/core/` is a deterministic
 simulation engine — collision-free multi-robot pathfinding, a cost-based
