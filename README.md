@@ -1,12 +1,12 @@
 # Team Rocket — AMR Fleet Control Dashboard
 
 A distributed, congestion-aware **Autonomous Mobile Robot (AMR)** warehouse
-fleet simulation and control dashboard. This is not a mock UI wired to
-placeholder data — `src/core/` is a real, deterministic simulation engine:
-collision-free multi-robot pathfinding, a cost-based task auction, and a
-battery/charging system, all driving the dashboard directly.
+fleet simulation and control dashboard. `src/core/` is a deterministic
+simulation engine — collision-free multi-robot pathfinding, a cost-based
+task auction, and a battery/charging system — driving the dashboard
+directly.
 
-## What this actually is
+## Core Capabilities
 
 * **Congestion-aware A\*** for per-robot route planning, plus **PIBT**
   (Priority Inheritance with Backtracking) resolving every robot's next
@@ -83,8 +83,8 @@ npm run lint
 
 ### `src/core/` — the simulation engine
 
-Plain TypeScript, no React/Next dependency. This is the actual backend
-logic, not sample data.
+Plain TypeScript, no React/Next dependency — the domain logic and
+simulation engine.
 
 * `src/core/types.ts` — the shared domain contract: `Position`,
   `RobotState`, `Task`, `WorldState`, `RobotModel`, and friends.
@@ -102,7 +102,7 @@ logic, not sample data.
   constants), `engine.ts` (`stepSimulation`: one simulation tick — route
   planning, PIBT resolution, arrivals, charging), and `dispatch.ts`
   (`runDispatchTick`: runs a full auction round *and* a simulation tick —
-  the one function the dashboard actually calls).
+  the one function the dashboard calls each tick).
 
 ### `src/app/` and `src/components/dashboard/` — the UI
 
@@ -146,11 +146,10 @@ backend running together under sustained load.
 
 ## Control Panel
 
-Every button on the dashboard does something real against the live
-`WorldState` — none of it is simulated theater:
+Every button acts directly on the live `WorldState`:
 
-* **Create Task** — adds a real pending task; the next tick's auction
-  picks it up and assigns it to whichever eligible robot bids lowest.
+* **Create Task** — adds a pending task; the next tick's auction picks it
+  up and assigns it to whichever eligible robot bids lowest.
 * **Start / Pause Sim** — starts or stops the tick loop.
 * **Sim Conflict** — stages two robots head-on in a single-file corridor
   so you can watch PIBT's priority inheritance resolve it live (the robot
@@ -158,9 +157,9 @@ Every button on the dashboard does something real against the live
 * **Sim Deadlock** — stages a genuine 4-robot rotational deadlock at a
   shared junction; watch the conflict/backtrack counters spike as the
   algorithm untangles it.
-* **Block Aisle** — actually blocks a stretch of corridor on the live map
-  (with a visible hazard marker), forcing any robot routed through it to
-  replan around the obstruction. Click again to clear it.
+* **Block Aisle** — blocks a stretch of corridor on the live map (with a
+  visible hazard marker), forcing any robot routed through it to replan
+  around the obstruction. Click again to clear it.
 * **Fail AMR-02** — marks a robot failed mid-route so you can watch the
   rest of the fleet route around it.
 * **Reset** — returns to the seeded initial state.
