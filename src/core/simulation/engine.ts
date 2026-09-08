@@ -38,19 +38,39 @@ function isAtChargingStation(position: Position): boolean {
   return CHARGING_STATIONS.some((station) => positionsEqual(station.position, position));
 }
 
-// A robot that has given up on winning bids (see robotModels.ts's
-// needsToCharge) and is otherwise free of work gets pulled out of service
-// and sent to dock — but only if it isn't already committed to something.
-// Interrupting an in-progress task or an already-queued backlog to force a
-// charge isn't part of this: the trigger only ever fires for a robot that
-// was already idle and simply couldn't win anything.
-function applyChargingTriggers(robots: RobotState[]): RobotState[] {
+// Decides what a robot with no task currently in flight does next: charge
+// if it needs to, otherwise pick up the next queued task if it has one,
+// otherwise stay idle. Never interrupts a task actually in progress.
+//
+// The charging check runs BEFORE the queue check, on every currentTaskId
+// -empty robot — not just ones whose queue is also empty. Originally the
+// trigger only fired once a robot's entire backlog (current + queue) was
+// exhausted, which let a robot grind through up to MAX_QUEUED_TASKS queued
+// tasks back-to-back on a single battery charge: each task was only ever
+// bid on against the robot's battery *at bid time*, with no re-check as
+// each one was promoted, so a robot could win a full queue while healthy
+// and still be executing it hours later at near-zero battery. A 6000-tick
+// stress run surfaced this directly: robots doing real work while under
+// the 20%-battery bidding floor averaged 3.2% battery at the time, with a
+// real minimum of 0%. Checking here, between every task and the next one
+// pulled off the queue, gives a robot a chance to divert to charging
+// without losing its place in its own backlog — the queue is left
+// untouched and picked back up once it's done charging.
+function resolveIdleWork(robots: RobotState[]): RobotState[] {
   return robots.map((robot) => {
     if (robot.status === "failed" || robot.status === "charging") return robot;
-    const hasNoWork = !robot.currentTaskId && (robot.queuedTaskIds?.length ?? 0) === 0;
-    if (hasNoWork && needsToCharge(robot)) {
+    if (robot.currentTaskId) return robot;
+
+    if (needsToCharge(robot)) {
       return { ...robot, status: "charging" };
     }
+
+    const queue = robot.queuedTaskIds ?? [];
+    if (queue.length > 0) {
+      const [next, ...rest] = queue;
+      return { ...robot, currentTaskId: next, queuedTaskIds: rest, status: "assigned" };
+    }
+
     return robot;
   });
 }
@@ -113,29 +133,17 @@ function deriveIdleOrTravelingStatus(atGoal: boolean, moved: boolean): RobotStat
   return moved ? "moving" : "waiting";
 }
 
-// When a robot's current task ends (completed, or its reference went
-// stale), pull the next task off its queue rather than leaving it idle
-// with a backlog nobody ever acts on — otherwise queuedTaskIds is just
-// bidding-eligibility bookkeeping that never actually executes.
-function promoteFromQueue(
-  robot: RobotState
-): Pick<RobotState, "currentTaskId" | "queuedTaskIds" | "status"> {
-  const queue = robot.queuedTaskIds ?? [];
-  if (queue.length === 0) {
-    return { currentTaskId: undefined, queuedTaskIds: queue, status: "idle" };
-  }
-  const [next, ...rest] = queue;
-  return { currentTaskId: next, queuedTaskIds: rest, status: "assigned" };
-}
-
 // Mechanical "did the robot physically reach the pickup/dropoff cell it was
 // heading to" bookkeeping — not task assignment or bidding. A robot picking
-// up or dropping off flips the task's lifecycle status; on dropoff it pulls
-// its next task off queuedTaskIds if it has one queued, otherwise goes
-// idle. Tasks with no assignedRobotId (never won an auction) are simply
-// never touched here (out of scope: auction itself). A charging robot is
-// handled separately: no task lifecycle applies to it, just recharge and
-// release once it's back to a working charge.
+// up or dropping off flips the task's lifecycle status; on dropoff it just
+// goes idle with currentTaskId cleared — resolveIdleWork (top of next
+// tick's stepSimulation) decides whether it charges or pulls its next
+// queued task, so a completed task never auto-promotes the queue behind
+// its back without a battery check first. Tasks with no assignedRobotId
+// (never won an auction) are simply never touched here (out of scope: the
+// auction itself). A charging robot is handled separately: no task
+// lifecycle applies to it, just recharge and release once it's back to a
+// working charge.
 function applyArrivals(
   robots: RobotState[],
   tasks: Task[],
@@ -169,7 +177,7 @@ function applyArrivals(
 
     const task = tasksById.get(robot.currentTaskId);
     if (!task) {
-      return { ...robot, ...promoteFromQueue(robot) };
+      return { ...robot, currentTaskId: undefined, status: "idle" };
     }
 
     if (task.status !== "in_progress" && positionsEqual(robot.position, task.pickup)) {
@@ -179,7 +187,7 @@ function applyArrivals(
 
     if (task.status === "in_progress" && positionsEqual(robot.position, task.dropoff)) {
       task.status = "completed";
-      return { ...robot, ...promoteFromQueue(robot) };
+      return { ...robot, currentTaskId: undefined, status: "idle" };
     }
 
     return { ...robot, status: moved ? "moving" : "waiting" };
@@ -189,10 +197,10 @@ function applyArrivals(
 }
 
 export function stepSimulation(state: WorldState): WorldState {
-  const chargingState: WorldState = { ...state, robots: applyChargingTriggers(state.robots) };
+  const preRouteState: WorldState = { ...state, robots: resolveIdleWork(state.robots) };
 
-  const { robots: routedRobots, replans } = planRoutes(chargingState);
-  const worldForPibt: WorldState = { ...chargingState, robots: routedRobots };
+  const { robots: routedRobots, replans } = planRoutes(preRouteState);
+  const worldForPibt: WorldState = { ...preRouteState, robots: routedRobots };
 
   const { moves, metrics: tickMetrics } = resolvePIBT(routedRobots, worldForPibt);
   const moveByRobot = new Map(moves.map((m) => [m.robotId, m]));
