@@ -98,11 +98,11 @@ export function ControlPanel({
           <label className="text-[11px] font-mono text-zinc-400 tracking-wider whitespace-nowrap w-24">
             robots (<span className="text-zinc-100 font-semibold">{robotCount}</span>)
           </label>
-          <input 
-            type="range" 
-            min="1" 
-            max="10" 
-            value={robotCount} 
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={robotCount}
             onChange={e => onRobotCountChange(parseInt(e.target.value))} 
             className="w-full h-1.5 bg-white/[0.08] border border-white/10 rounded-lg appearance-none cursor-pointer accent-[#C9F27D] hover:accent-[#C9F27D] transition-all" 
           />

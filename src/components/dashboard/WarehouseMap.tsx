@@ -6,10 +6,11 @@ import {
   WAREHOUSE_WIDTH, 
   WAREHOUSE_HEIGHT, 
   SHELF_BLOCKS, 
-  WAITING_ZONES, 
-  PICKUP_STATIONS, 
-  DROPOFF_STATIONS, 
-  INTERSECTIONS 
+  WAITING_ZONES,
+  PICKUP_STATIONS,
+  DROPOFF_STATIONS,
+  CHARGING_STATIONS,
+  INTERSECTIONS
 } from '@/core/map/warehouse';
 import type { RobotState } from '@/core/types';
 import { getRobotColor, getRobotHeading } from './types';
@@ -229,7 +230,22 @@ export function WarehouseMap({
               </div>
             ))}
 
-            <svg 
+            {CHARGING_STATIONS.map((station) => (
+              <div
+                key={station.id}
+                className="absolute bg-[#0f172a] border-2 border-[#f59e0b] rounded-[3px] shadow-[0_0_18px_rgba(245,158,11,0.45)] flex items-center justify-center z-20"
+                style={{
+                  left: `calc(100% * ${station.position.x}/${WAREHOUSE_WIDTH})`,
+                  top: `calc(100% * ${station.position.y}/${WAREHOUSE_HEIGHT})`,
+                  width: `calc(100% * 1/${WAREHOUSE_WIDTH})`,
+                  height: `calc(100% * 1/${WAREHOUSE_HEIGHT})`
+                }}
+              >
+                <BatteryCharging size={12} className="text-[#f59e0b]" />
+              </div>
+            ))}
+
+            <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-hidden"
               viewBox={`0 0 ${WAREHOUSE_WIDTH} ${WAREHOUSE_HEIGHT}`}
               preserveAspectRatio="none"
@@ -395,7 +411,9 @@ export function WarehouseMap({
           <span>waiting zone</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 border border-zinc-600 border-dashed rounded-[2px]"></div>
+          <div className="w-3 h-3 bg-[#0f172a] border-2 border-[#f59e0b] rounded-[2px] flex items-center justify-center">
+            <BatteryCharging size={8} className="text-[#f59e0b]" />
+          </div>
           <span>docking station</span>
         </div>
         <div className="flex items-center gap-2">
