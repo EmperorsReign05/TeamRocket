@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import type { Task, WorldState } from '@/core/types';
+import type { Position, Task, WorldState } from '@/core/types';
 import { createInitialWorld } from '@/core/simulation/state';
 import { runDispatchTick } from '@/core/simulation/dispatch';
 import { ROBOT_MODELS } from '@/core/simulation/robotModels';
@@ -15,6 +15,41 @@ import {
   EventLog,
   type LogEntry
 } from '@/components/dashboard';
+
+// x=6 is a single-cell-wide open corridor for its entire height (no shelf
+// ever occupies that column) — the narrowest possible stage for a head-on
+// encounter neither robot can just step around.
+const CONFLICT_CORRIDOR_TOP: Position = { x: 6, y: 1 };
+const CONFLICT_CORRIDOR_BOTTOM: Position = { x: 6, y: 11 };
+
+// x=12,13,14 are three consecutive fully-open columns (the gap between the
+// col4 and col5 shelf racks) — this 2x2 box sits inside that open area,
+// clear of the waiting zones and intersections nearby.
+const DEADLOCK_BOX: Position[] = [
+  { x: 12, y: 1 },
+  { x: 13, y: 1 },
+  { x: 13, y: 2 },
+  { x: 12, y: 2 },
+];
+
+// A true single-file stretch: shelves flank both sides of x=9 at rows 5-7,
+// so blocking it forces a real detour rather than just a sidestep.
+const AISLE_BLOCK_CELLS: Position[] = [
+  { x: 9, y: 5 },
+  { x: 9, y: 6 },
+  { x: 9, y: 7 },
+];
+
+// Any task a repurposed demo robot was holding (current or queued) goes
+// back to "pending" so it re-enters the auction instead of being silently
+// abandoned mid-flight, referencing a robot that's now doing something else.
+function releaseRobotTasks(tasks: Task[], robotIds: Set<string>): Task[] {
+  return tasks.map((t) =>
+    t.assignedRobotId && robotIds.has(t.assignedRobotId) && t.status !== 'completed'
+      ? { ...t, status: 'pending' as const, assignedRobotId: undefined }
+      : t
+  );
+}
 
 const INITIAL_LOGS: LogEntry[] = [
   { time: '14:32:00', text: 'simulation engine ready (a* + pibt active)', type: 'info' },
@@ -40,6 +75,7 @@ export default function Dashboard() {
   const [robotCount, setRobotCount] = useState(() => createInitialWorld().robots.length);
   const [shelfColCount, setShelfColCount] = useState(6);
   const [selectedRobotId, setSelectedRobotId] = useState<string | null>(null);
+  const [aisleBlocked, setAisleBlocked] = useState(false);
 
   useEffect(() => {
     if (!isSimulating) return;
@@ -117,11 +153,79 @@ export default function Dashboard() {
   };
 
   const handleSimulateConflict = () => {
-    addLog('priority conflict trigger verified: pibt active', 'warning');
+    setWorld((prev) => {
+      const eligible = prev.robots.filter((r) => r.status !== 'failed');
+      if (eligible.length < 2) {
+        addLog('need at least 2 active robots for a conflict demo', 'error');
+        return prev;
+      }
+      const [a, b] = eligible;
+      const releasedTasks = releaseRobotTasks(prev.tasks, new Set([a.id, b.id]));
+      const robots = prev.robots.map((r) => {
+        if (r.id === a.id) {
+          return { ...r, position: CONFLICT_CORRIDOR_TOP, home: CONFLICT_CORRIDOR_BOTTOM, currentTaskId: undefined, queuedTaskIds: [], path: [], status: 'idle' as const };
+        }
+        if (r.id === b.id) {
+          return { ...r, position: CONFLICT_CORRIDOR_BOTTOM, home: CONFLICT_CORRIDOR_TOP, currentTaskId: undefined, queuedTaskIds: [], path: [], status: 'idle' as const };
+        }
+        return r;
+      });
+      addLog(`conflict scenario: ${a.id.toLowerCase()} and ${b.id.toLowerCase()} sent head-on down the x=6 aisle — watch pibt resolve it`, 'warning');
+      return { ...prev, robots, tasks: releasedTasks };
+    });
   };
-  
+
   const handleSimulateDeadlock = () => {
-    addLog('deadlock avoidance verified: priority inheritance active', 'info');
+    setWorld((prev) => {
+      const eligible = prev.robots.filter((r) => r.status !== 'failed');
+      if (eligible.length < 4) {
+        addLog('need at least 4 active robots for a deadlock demo', 'error');
+        return prev;
+      }
+      const chosen = eligible.slice(0, 4);
+      const chosenIds = new Set(chosen.map((r) => r.id));
+      const releasedTasks = releaseRobotTasks(prev.tasks, chosenIds);
+      const robots = prev.robots.map((r) => {
+        const idx = chosen.findIndex((c) => c.id === r.id);
+        if (idx === -1) return r;
+        // Each robot's home is the cell the next one (clockwise) starts
+        // on — a pure rotation where everyone wants a cell someone else is
+        // standing on, the classic case only backtracking actually solves.
+        const nextIdx = (idx + 1) % DEADLOCK_BOX.length;
+        return {
+          ...r,
+          position: DEADLOCK_BOX[idx],
+          home: DEADLOCK_BOX[nextIdx],
+          currentTaskId: undefined,
+          queuedTaskIds: [],
+          path: [],
+          status: 'idle' as const,
+        };
+      });
+      addLog(`deadlock scenario: ${chosen.map((r) => r.id.toLowerCase()).join(', ')} locked in a rotation at (12-13, 1-2) — priority inheritance engaging`, 'warning');
+      return { ...prev, robots, tasks: releasedTasks };
+    });
+  };
+
+  const handleBlockAisle = () => {
+    setWorld((prev) => {
+      const nextBlocked = !aisleBlocked;
+      const blockedSet = new Set(AISLE_BLOCK_CELLS.map((p) => `${p.x},${p.y}`));
+      const map = {
+        ...prev.map,
+        cells: prev.map.cells.map((cell) =>
+          blockedSet.has(`${cell.position.x},${cell.position.y}`) ? { ...cell, blocked: nextBlocked } : cell
+        ),
+      };
+      addLog(
+        nextBlocked
+          ? 'aisle blocked at x=9 (rows 5-7) — any robot routed through it has to replan live'
+          : 'aisle cleared at x=9 — back to the shortest path',
+        nextBlocked ? 'warning' : 'info'
+      );
+      return { ...prev, map };
+    });
+    setAisleBlocked((prev) => !prev);
   };
 
   const handleFailAMR = () => {
@@ -148,6 +252,7 @@ export default function Dashboard() {
     setRobotCount(freshRobots.length);
     setShelfColCount(6);
     setSelectedRobotId(null);
+    setAisleBlocked(false);
     addLog('system state reset to initial conditions', 'info');
   };
 
@@ -197,24 +302,26 @@ export default function Dashboard() {
 
         <div className="p-4 flex gap-4">
           <div className="w-[72%] flex flex-col gap-4 min-w-0">
-            <WarehouseMap 
+            <WarehouseMap
               robots={world.robots}
               selectedRobotId={selectedRobotId}
               onSelectRobot={setSelectedRobotId}
               shelfColCount={shelfColCount}
+              map={world.map}
             />
 
             <div className="shrink-0 flex flex-col gap-4">
-              <ControlPanel 
+              <ControlPanel
                 isSimulating={isSimulating}
                 robotCount={robotCount}
                 shelfColCount={shelfColCount}
+                aisleBlocked={aisleBlocked}
                 onCreateTask={handleCreateTask}
                 onToggleSimulation={handleToggleSimulation}
                 onSimulateConflict={handleSimulateConflict}
                 onSimulateDeadlock={handleSimulateDeadlock}
                 onFailAMR={handleFailAMR}
-                onBlockAisle={() => addLog('aisle block simulated', 'warning')}
+                onBlockAisle={handleBlockAisle}
                 onReset={handleReset}
                 onRobotCountChange={handleRobotCountChange}
                 onShelfColCountChange={setShelfColCount}
