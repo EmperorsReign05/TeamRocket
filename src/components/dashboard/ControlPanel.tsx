@@ -7,6 +7,7 @@ interface ControlPanelProps {
   isSimulating: boolean;
   robotCount: number;
   shelfColCount: number;
+  aisleBlocked: boolean;
   onCreateTask: () => void;
   onToggleSimulation: () => void;
   onSimulateConflict: () => void;
@@ -22,6 +23,7 @@ export function ControlPanel({
   isSimulating,
   robotCount,
   shelfColCount,
+  aisleBlocked,
   onCreateTask,
   onToggleSimulation,
   onSimulateConflict,
@@ -78,11 +80,15 @@ export function ControlPanel({
         >
           <AlertCircle size={15} strokeWidth={2.5} /> fail amr-02
         </button>
-        <button 
-          onClick={onBlockAisle} 
-          className="bg-[#C9F27D]/10 border border-[#C9F27D]/40 text-[#C9F27D] hover:bg-[#C9F27D] hover:text-[#090C11] hover:border-[#C9F27D] hover:shadow-[0_0_15px_rgba(201,242,125,0.35)] px-3.5 py-2 rounded-md text-[11px] font-mono font-semibold tracking-wider flex items-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 active:scale-95 whitespace-nowrap cursor-pointer"
+        <button
+          onClick={onBlockAisle}
+          className={`border px-3.5 py-2 rounded-md text-[11px] font-mono font-semibold tracking-wider flex items-center gap-1.5 transition-all duration-150 hover:-translate-y-0.5 active:scale-95 whitespace-nowrap cursor-pointer ${
+            aisleBlocked
+              ? 'bg-[#F87171]/25 border-[#F87171] text-[#F87171] hover:bg-[#F87171] hover:text-[#090C11] hover:shadow-[0_0_15px_rgba(248,113,113,0.35)]'
+              : 'bg-[#C9F27D]/10 border-[#C9F27D]/40 text-[#C9F27D] hover:bg-[#C9F27D] hover:text-[#090C11] hover:border-[#C9F27D] hover:shadow-[0_0_15px_rgba(201,242,125,0.35)]'
+          }`}
         >
-          <XOctagon size={15} strokeWidth={2.5} /> block aisle
+          <XOctagon size={15} strokeWidth={2.5} /> {aisleBlocked ? 'clear aisle' : 'block aisle'}
         </button>
         <div className="flex-1"></div>
         <button 

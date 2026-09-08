@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { X, Navigation, BatteryCharging, Zap } from 'lucide-react';
-import { 
-  WAREHOUSE_WIDTH, 
-  WAREHOUSE_HEIGHT, 
-  SHELF_BLOCKS, 
+import { X, Navigation, BatteryCharging, Zap, AlertTriangle } from 'lucide-react';
+import {
+  WAREHOUSE_WIDTH,
+  WAREHOUSE_HEIGHT,
+  SHELF_BLOCKS,
   WAITING_ZONES,
   PICKUP_STATIONS,
   DROPOFF_STATIONS,
   CHARGING_STATIONS,
   INTERSECTIONS
 } from '@/core/map/warehouse';
-import type { RobotState } from '@/core/types';
+import type { RobotState, WarehouseMap as WarehouseMapData } from '@/core/types';
 import { getRobotColor, getRobotHeading } from './types';
 
 interface WarehouseMapProps {
@@ -20,14 +20,22 @@ interface WarehouseMapProps {
   selectedRobotId: string | null;
   onSelectRobot: (id: string | null) => void;
   shelfColCount: number;
+  map?: WarehouseMapData;
 }
 
-export function WarehouseMap({ 
-  robots, 
-  selectedRobotId, 
-  onSelectRobot, 
-  shelfColCount 
+export function WarehouseMap({
+  robots,
+  selectedRobotId,
+  onSelectRobot,
+  shelfColCount,
+  map
 }: WarehouseMapProps) {
+  const dynamicBlockedCells = useMemo(() => {
+    if (!map) return [];
+    const isShelfCell = (x: number, y: number) =>
+      SHELF_BLOCKS.some(([bx, by, bw, bh]) => x >= bx && x < bx + bw && y >= by && y < by + bh);
+    return map.cells.filter((cell) => cell.blocked && !isShelfCell(cell.position.x, cell.position.y));
+  }, [map]);
   const shelfCols = useMemo(() => {
     return Array.from(new Set(SHELF_BLOCKS.map(b => b[0]))).sort((a, b) => a - b);
   }, []);
@@ -245,6 +253,21 @@ export function WarehouseMap({
               </div>
             ))}
 
+            {dynamicBlockedCells.map((cell) => (
+              <div
+                key={`block-${cell.position.x}-${cell.position.y}`}
+                className="absolute border-2 border-[#F87171] bg-[repeating-linear-gradient(45deg,rgba(248,113,113,0.35)_0px,rgba(248,113,113,0.35)_4px,rgba(15,23,42,0.6)_4px,rgba(15,23,42,0.6)_8px)] flex items-center justify-center z-25 animate-pulse"
+                style={{
+                  left: `calc(100% * ${cell.position.x}/${WAREHOUSE_WIDTH})`,
+                  top: `calc(100% * ${cell.position.y}/${WAREHOUSE_HEIGHT})`,
+                  width: `calc(100% * 1/${WAREHOUSE_WIDTH})`,
+                  height: `calc(100% * 1/${WAREHOUSE_HEIGHT})`
+                }}
+              >
+                <AlertTriangle size={12} className="text-[#F87171] drop-shadow-[0_0_4px_rgba(248,113,113,0.8)]" />
+              </div>
+            ))}
+
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-hidden"
               viewBox={`0 0 ${WAREHOUSE_WIDTH} ${WAREHOUSE_HEIGHT}`}
@@ -415,6 +438,10 @@ export function WarehouseMap({
             <BatteryCharging size={8} className="text-[#f59e0b]" />
           </div>
           <span>docking station</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-[#F87171] bg-[repeating-linear-gradient(45deg,rgba(248,113,113,0.35)_0px,rgba(248,113,113,0.35)_2px,rgba(15,23,42,0.6)_2px,rgba(15,23,42,0.6)_4px)]"></div>
+          <span>blocked aisle</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
