@@ -1,9 +1,20 @@
-import type { RobotState } from '@/core/types';
+import type { Position, RobotState } from '@/core/types';
 
 export type LogEntry = {
   time: string;
   text: string;
   type: 'info' | 'warning' | 'error';
+};
+
+// A short-lived callout anchored to a specific map cell — used for
+// surfacing an algorithm event (e.g. PIBT priority inheritance) right
+// where it actually happened, instead of in a corner toast disconnected
+// from the map the audience is watching.
+export type MapTooltip = {
+  id: string;
+  robotId: string;
+  text: string;
+  position: Position;
 };
 
 export const ROBOT_COLORS: Record<string, string> = {

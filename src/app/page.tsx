@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Position, Task, WorldState } from '@/core/types';
 import { createInitialWorld } from '@/core/simulation/state';
 import { runDispatchTick } from '@/core/simulation/dispatch';
 import { ROBOT_MODELS } from '@/core/simulation/robotModels';
-import { 
+import {
   Header,
   WarehouseMap,
   ControlPanel,
@@ -13,7 +13,8 @@ import {
   FleetStatus,
   ActiveTasks,
   EventLog,
-  type LogEntry
+  type LogEntry,
+  type MapTooltip
 } from '@/components/dashboard';
 
 // x=6 is a single-cell-wide open corridor for its entire height (no shelf
@@ -51,6 +52,24 @@ function releaseRobotTasks(tasks: Task[], robotIds: Set<string>): Task[] {
   );
 }
 
+const TOOLTIP_LIFETIME_MS = 2200;
+
+// Which robot to point the tooltip at, and what to say — derived from a
+// real state transition PIBT just made (a robot that only just became
+// "waiting" this tick), not a guess: it's the robot the algorithm chose to
+// hold back in favor of someone else, right as it made that choice.
+function findYieldingRobots(prevWorld: WorldState, nextWorld: WorldState): { robotId: string; position: Position }[] {
+  const prevById = new Map(prevWorld.robots.map((r) => [r.id, r]));
+  const yielded: { robotId: string; position: Position }[] = [];
+  for (const r of nextWorld.robots) {
+    const prevR = prevById.get(r.id);
+    if (prevR && prevR.status !== 'waiting' && r.status === 'waiting') {
+      yielded.push({ robotId: r.id, position: r.position });
+    }
+  }
+  return yielded;
+}
+
 const INITIAL_LOGS: LogEntry[] = [
   { time: '14:32:00', text: 'simulation engine ready (a* + pibt active)', type: 'info' },
   { time: '14:31:45', text: 'amr-02 assigned to t-102', type: 'info' },
@@ -76,42 +95,69 @@ export default function Dashboard() {
   const [shelfColCount, setShelfColCount] = useState(6);
   const [selectedRobotId, setSelectedRobotId] = useState<string | null>(null);
   const [aisleBlocked, setAisleBlocked] = useState(false);
+  const [conflictTooltips, setConflictTooltips] = useState<MapTooltip[]>([]);
+
+  const addLog = useCallback((text: string, type: 'info' | 'warning' | 'error' = 'info') => {
+    const now = new Date();
+    setLogs((prev) => [...prev, { time: now.toLocaleTimeString('en-GB', { hour12: false }), text, type }]);
+  }, []);
+
+  // Mirrors `world` for the tick loop below. A setState updater function
+  // isn't guaranteed to run exactly once (React may invoke it more than
+  // once, e.g. under StrictMode in dev) — fine for a pure state transition,
+  // but the tick loop also fires real side effects (addLog, spawning
+  // tooltips) off the prev/next diff, and those must run exactly once per
+  // real tick. Reading/writing a ref outside the updater keeps prevWorld
+  // and the side effects it drives tied to one actual tick, not to however
+  // many times React happens to call the updater.
+  const worldRef = useRef(world);
+  useEffect(() => {
+    worldRef.current = world;
+  }, [world]);
 
   useEffect(() => {
     if (!isSimulating) return;
 
     const timer = setInterval(() => {
-      setWorld((prevWorld) => {
-        const nextWorld = runDispatchTick(prevWorld);
+      const prevWorld = worldRef.current;
+      const nextWorld = runDispatchTick(prevWorld);
+      worldRef.current = nextWorld;
+      setWorld(nextWorld);
 
-        prevWorld.tasks.forEach((t) => {
-          const nextT = nextWorld.tasks.find((nt) => nt.id === t.id);
-          if (nextT && t.status !== nextT.status) {
-            if (nextT.status === 'assigned' && t.status === 'pending') {
-              addLog(`task ${nextT.id.toLowerCase()} won by ${(nextT.assignedRobotId ?? 'a robot').toLowerCase()} at auction`, 'info');
-            } else if (nextT.status === 'in_progress') {
-              addLog(`${(nextT.assignedRobotId ?? 'robot').toLowerCase()} reached pickup for ${nextT.id.toLowerCase()}`, 'info');
-            } else if (nextT.status === 'completed') {
-              addLog(`task ${nextT.id.toLowerCase()} completed at dropoff`, 'info');
-            }
+      prevWorld.tasks.forEach((t) => {
+        const nextT = nextWorld.tasks.find((nt) => nt.id === t.id);
+        if (nextT && t.status !== nextT.status) {
+          if (nextT.status === 'assigned' && t.status === 'pending') {
+            addLog(`task ${nextT.id.toLowerCase()} won by ${(nextT.assignedRobotId ?? 'a robot').toLowerCase()} at auction`, 'info');
+          } else if (nextT.status === 'in_progress') {
+            addLog(`${(nextT.assignedRobotId ?? 'robot').toLowerCase()} reached pickup for ${nextT.id.toLowerCase()}`, 'info');
+          } else if (nextT.status === 'completed') {
+            addLog(`task ${nextT.id.toLowerCase()} completed at dropoff`, 'info');
           }
-        });
-
-        if (nextWorld.metrics.conflictCount > prevWorld.metrics.conflictCount) {
-          addLog(`pibt conflict resolved at tick ${nextWorld.tick}`, 'warning');
         }
-
-        return nextWorld;
       });
+
+      if (nextWorld.metrics.conflictCount > prevWorld.metrics.conflictCount) {
+        addLog(`pibt conflict resolved at tick ${nextWorld.tick}`, 'warning');
+
+        // Spawn a tooltip right on the robot that actually yielded, not a
+        // generic corner toast — the payoff should land exactly where the
+        // audience's eyes already are.
+        for (const { robotId, position } of findYieldingRobots(prevWorld, nextWorld)) {
+          const tooltipId = `${robotId}-${nextWorld.tick}`;
+          setConflictTooltips((prev) => [
+            ...prev,
+            { id: tooltipId, robotId, text: `${robotId} yields — priority inherited`, position },
+          ]);
+          setTimeout(() => {
+            setConflictTooltips((prev) => prev.filter((t) => t.id !== tooltipId));
+          }, TOOLTIP_LIFETIME_MS);
+        }
+      }
     }, 650);
 
     return () => clearInterval(timer);
-  }, [isSimulating]);
-
-  const addLog = (text: string, type: 'info' | 'warning' | 'error' = 'info') => {
-    const now = new Date();
-    setLogs(prev => [...prev, { time: now.toLocaleTimeString('en-GB', { hour12: false }), text, type }]);
-  };
+  }, [isSimulating, addLog]);
 
   const handleCreateTask = () => {
     setWorld((prev) => {
@@ -253,6 +299,7 @@ export default function Dashboard() {
     setShelfColCount(6);
     setSelectedRobotId(null);
     setAisleBlocked(false);
+    setConflictTooltips([]);
     addLog('system state reset to initial conditions', 'info');
   };
 
@@ -308,6 +355,7 @@ export default function Dashboard() {
               onSelectRobot={setSelectedRobotId}
               shelfColCount={shelfColCount}
               map={world.map}
+              tooltips={conflictTooltips}
             />
 
             <div className="shrink-0 flex flex-col gap-4">
