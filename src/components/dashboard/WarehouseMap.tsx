@@ -13,7 +13,7 @@ import {
   INTERSECTIONS
 } from '@/core/map/warehouse';
 import type { RobotState, WarehouseMap as WarehouseMapData } from '@/core/types';
-import { getRobotColor, getRobotHeading } from './types';
+import { getRobotColor, getRobotHeading, type MapTooltip } from './types';
 
 interface WarehouseMapProps {
   robots: RobotState[];
@@ -21,6 +21,7 @@ interface WarehouseMapProps {
   onSelectRobot: (id: string | null) => void;
   shelfColCount: number;
   map?: WarehouseMapData;
+  tooltips?: MapTooltip[];
 }
 
 export function WarehouseMap({
@@ -28,7 +29,8 @@ export function WarehouseMap({
   selectedRobotId,
   onSelectRobot,
   shelfColCount,
-  map
+  map,
+  tooltips = []
 }: WarehouseMapProps) {
   const dynamicBlockedCells = useMemo(() => {
     if (!map) return [];
@@ -359,6 +361,23 @@ export function WarehouseMap({
                 </div>
               );
             })}
+
+            {tooltips.map((tip) => (
+              <div
+                key={tip.id}
+                className="absolute z-50 pointer-events-none animate-in fade-in duration-200"
+                style={{
+                  left: `calc(100% * ${tip.position.x + 0.5}/${WAREHOUSE_WIDTH})`,
+                  top: `calc(100% * ${tip.position.y}/${WAREHOUSE_HEIGHT})`,
+                  transform: 'translate(-50%, -135%)'
+                }}
+              >
+                <div className="relative bg-[#1c1206]/95 border border-[#f59e0b] text-[#f59e0b] text-[10px] font-mono font-semibold px-2 py-1 rounded-md shadow-[0_0_12px_rgba(245,158,11,0.5)] whitespace-nowrap">
+                  {tip.text}
+                  <div className="absolute left-1/2 top-full -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-[#f59e0b]" />
+                </div>
+              </div>
+            ))}
 
          </div>
 
