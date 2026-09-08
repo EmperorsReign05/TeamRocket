@@ -1,8 +1,9 @@
 import type { Position, RobotState, RobotStatus, Task, WorldState } from "../types";
-import { computeCongestion, isTraversable } from "../map/warehouse";
-import { positionsEqual } from "../map/graph";
+import { CHARGING_STATIONS, computeCongestion, isTraversable } from "../map/warehouse";
+import { manhattanDistance, positionsEqual } from "../map/graph";
 import { planPath } from "../pathfinding/astar";
 import { resolvePIBT } from "../pathfinding/pibt";
+import { BATTERY_PERCENT_PER_CELL, CHARGE_PERCENT_PER_TICK, RECHARGE_TARGET_PERCENT, needsToCharge } from "./robotModels";
 
 // One discrete simulation tick:
 //   1. work out which robots need a route, (re)plan those with A*
@@ -20,10 +21,49 @@ import { resolvePIBT } from "../pathfinding/pibt";
 
 const BASE_PRIORITY_RESET = 0;
 
+function nearestChargingStation(position: Position): Position {
+  let best = CHARGING_STATIONS[0].position;
+  let bestDist = manhattanDistance(position, best);
+  for (const station of CHARGING_STATIONS.slice(1)) {
+    const dist = manhattanDistance(position, station.position);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = station.position;
+    }
+  }
+  return best;
+}
+
+function isAtChargingStation(position: Position): boolean {
+  return CHARGING_STATIONS.some((station) => positionsEqual(station.position, position));
+}
+
+// A robot that has given up on winning bids (see robotModels.ts's
+// needsToCharge) and is otherwise free of work gets pulled out of service
+// and sent to dock — but only if it isn't already committed to something.
+// Interrupting an in-progress task or an already-queued backlog to force a
+// charge isn't part of this: the trigger only ever fires for a robot that
+// was already idle and simply couldn't win anything.
+function applyChargingTriggers(robots: RobotState[]): RobotState[] {
+  return robots.map((robot) => {
+    if (robot.status === "failed" || robot.status === "charging") return robot;
+    const hasNoWork = !robot.currentTaskId && (robot.queuedTaskIds?.length ?? 0) === 0;
+    if (hasNoWork && needsToCharge(robot)) {
+      return { ...robot, status: "charging" };
+    }
+    return robot;
+  });
+}
+
 // A robot with a task is en route to the pickup while its task isn't
 // "in_progress" yet, and en route to the dropoff once it is. Arrival at
-// each point (see applyArrivals) is what flips that status.
+// each point (see applyArrivals) is what flips that status. A charging
+// robot heads for its nearest station and has no goal once it arrives —
+// applyArrivals handles the actual recharge from there.
 function resolveGoal(robot: RobotState, tasks: Task[]): Position | null {
+  if (robot.status === "charging") {
+    return isAtChargingStation(robot.position) ? null : nearestChargingStation(robot.position);
+  }
   if (!robot.currentTaskId) {
     return positionsEqual(robot.position, robot.home) ? null : robot.home;
   }
@@ -73,11 +113,29 @@ function deriveIdleOrTravelingStatus(atGoal: boolean, moved: boolean): RobotStat
   return moved ? "moving" : "waiting";
 }
 
+// When a robot's current task ends (completed, or its reference went
+// stale), pull the next task off its queue rather than leaving it idle
+// with a backlog nobody ever acts on — otherwise queuedTaskIds is just
+// bidding-eligibility bookkeeping that never actually executes.
+function promoteFromQueue(
+  robot: RobotState
+): Pick<RobotState, "currentTaskId" | "queuedTaskIds" | "status"> {
+  const queue = robot.queuedTaskIds ?? [];
+  if (queue.length === 0) {
+    return { currentTaskId: undefined, queuedTaskIds: queue, status: "idle" };
+  }
+  const [next, ...rest] = queue;
+  return { currentTaskId: next, queuedTaskIds: rest, status: "assigned" };
+}
+
 // Mechanical "did the robot physically reach the pickup/dropoff cell it was
 // heading to" bookkeeping — not task assignment or bidding. A robot picking
-// up or dropping off flips the task's lifecycle status and, on dropoff,
-// releases the robot back to idle. T-104-style pending tasks with no
-// assignedRobotId are simply never touched here (out of scope: auction).
+// up or dropping off flips the task's lifecycle status; on dropoff it pulls
+// its next task off queuedTaskIds if it has one queued, otherwise goes
+// idle. Tasks with no assignedRobotId (never won an auction) are simply
+// never touched here (out of scope: auction itself). A charging robot is
+// handled separately: no task lifecycle applies to it, just recharge and
+// release once it's back to a working charge.
 function applyArrivals(
   robots: RobotState[],
   tasks: Task[],
@@ -88,6 +146,20 @@ function applyArrivals(
   const nextRobots = robots.map((robot): RobotState => {
     if (robot.status === "failed") return robot;
 
+    if (robot.status === "charging") {
+      if (!isAtChargingStation(robot.position)) return robot; // still traveling there
+      // Opportunity charging: leave once back at RECHARGE_TARGET_PERCENT,
+      // not necessarily 100% — see that constant's comment for why. Check
+      // the POST-increment value: a robot that crosses the target this
+      // tick should leave charging status this same tick, not one tick
+      // later once something else notices it's already there.
+      const battery = Math.min(100, robot.battery + CHARGE_PERCENT_PER_TICK);
+      if (battery >= RECHARGE_TARGET_PERCENT) {
+        return { ...robot, battery, status: "idle", lowBatteryStreak: 0 };
+      }
+      return { ...robot, battery };
+    }
+
     const moved = movedById.get(robot.id) ?? false;
 
     if (!robot.currentTaskId) {
@@ -97,7 +169,7 @@ function applyArrivals(
 
     const task = tasksById.get(robot.currentTaskId);
     if (!task) {
-      return { ...robot, currentTaskId: undefined, status: "idle" };
+      return { ...robot, ...promoteFromQueue(robot) };
     }
 
     if (task.status !== "in_progress" && positionsEqual(robot.position, task.pickup)) {
@@ -107,7 +179,7 @@ function applyArrivals(
 
     if (task.status === "in_progress" && positionsEqual(robot.position, task.dropoff)) {
       task.status = "completed";
-      return { ...robot, currentTaskId: undefined, status: "idle" };
+      return { ...robot, ...promoteFromQueue(robot) };
     }
 
     return { ...robot, status: moved ? "moving" : "waiting" };
@@ -117,8 +189,10 @@ function applyArrivals(
 }
 
 export function stepSimulation(state: WorldState): WorldState {
-  const { robots: routedRobots, replans } = planRoutes(state);
-  const worldForPibt: WorldState = { ...state, robots: routedRobots };
+  const chargingState: WorldState = { ...state, robots: applyChargingTriggers(state.robots) };
+
+  const { robots: routedRobots, replans } = planRoutes(chargingState);
+  const worldForPibt: WorldState = { ...chargingState, robots: routedRobots };
 
   const { moves, metrics: tickMetrics } = resolvePIBT(routedRobots, worldForPibt);
   const moveByRobot = new Map(moves.map((m) => [m.robotId, m]));
@@ -146,7 +220,13 @@ export function stepSimulation(state: WorldState): WorldState {
 
     const priority = path.length <= 1 ? BASE_PRIORITY_RESET : robot.priority;
 
-    return { ...robot, position: move.to, path, priority };
+    // Actually drain battery on real movement — otherwise the auction's
+    // battery-sufficiency check evaluates every bid against a number that
+    // never changes, and a robot could win task after task forever without
+    // ever looking any less charged than the moment it was seeded.
+    const battery = Math.max(0, robot.battery - BATTERY_PERCENT_PER_CELL);
+
+    return { ...robot, position: move.to, path, priority, battery };
   });
 
   const { robots, tasks } = applyArrivals(movedRobots, state.tasks, movedById);

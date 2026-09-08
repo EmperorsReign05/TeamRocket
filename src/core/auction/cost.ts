@@ -1,6 +1,7 @@
 import type { RobotState, Task, WorldState } from "../types";
 import { planPath } from "../pathfinding/astar";
 import { manhattanDistance } from "../map/graph";
+import { BATTERY_PERCENT_PER_CELL } from "../simulation/robotModels";
 
 // A robot's bid: one scalar totalCost the auction minimizes, plus the
 // individual factors that produced it (kept on the bid for
@@ -27,6 +28,15 @@ export type RobotBid = {
   // RobotModel.payloadCapacity outright. assignTask/getBiddingRobots
   // filter these out.
   feasible: boolean;
+
+  // Why feasible is false, or null when feasible. Exists specifically so
+  // callers never have to reverse-engineer "which cost field is Infinity"
+  // to figure out the reason — that pattern caused a real bug (see
+  // updateLowBatteryStreaks in assign.ts): batteryCost used to get set to
+  // Infinity in the payload/unreachable branches too, as a generic
+  // "everything's infinite when infeasible" filler, which made a battery
+  // reason indistinguishable from an unrelated one.
+  infeasibleReason: "overweight" | "unreachable" | "battery" | null;
 };
 
 // ---- Tunable weights ---------------------------------------------------
@@ -43,10 +53,6 @@ const WEIGHTS = {
   payload: 0.5,
 } as const;
 
-// Battery percent consumed per grid cell moved. A placeholder until real
-// per-robot energy telemetry exists — every robot currently shares one
-// consumption rate regardless of RobotModel.
-const BATTERY_PERCENT_PER_CELL = 0.5;
 
 // Hard safety floor: never accept a bid that would leave a robot below
 // this charge. This is an eligibility cutoff, not a soft preference.
@@ -132,12 +138,13 @@ export function calculateBid(robot: RobotState, task: Task, world: WorldState): 
       eta: Infinity,
       travelCost: Infinity,
       congestionCost: 0,
-      batteryCost: Infinity,
+      batteryCost: 0, // NOT the reason — see infeasibleReason
       workloadCost,
       urgencyCost: 0,
       payloadCost: Infinity,
       totalCost: Infinity,
       feasible: false,
+      infeasibleReason: "overweight",
     };
   }
 
@@ -152,12 +159,13 @@ export function calculateBid(robot: RobotState, task: Task, world: WorldState): 
       eta: Infinity,
       travelCost: Infinity,
       congestionCost: 0,
-      batteryCost: Infinity,
+      batteryCost: 0, // NOT the reason — see infeasibleReason
       workloadCost,
       urgencyCost: 0,
       payloadCost,
       totalCost: Infinity,
       feasible: false,
+      infeasibleReason: "unreachable",
     };
   }
 
@@ -195,5 +203,6 @@ export function calculateBid(robot: RobotState, task: Task, world: WorldState): 
     payloadCost,
     totalCost,
     feasible: battery.feasible,
+    infeasibleReason: battery.feasible ? null : "battery",
   };
 }

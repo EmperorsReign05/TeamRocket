@@ -10,6 +10,8 @@ const BASE_PRIORITY = 0;
 
 function createInitialRobots(): RobotState[] {
   return [
+    // AMR-01..03 keep their original positions/tasks/battery — the two
+    // seeded tasks (T-102, T-103) are still assigned to AMR-02/AMR-03.
     {
       id: "AMR-01",
       position: { x: 1, y: 0 },
@@ -39,6 +41,79 @@ function createInitialRobots(): RobotState[] {
       status: "assigned",
       model: SCOUT_AGILE_2,
       currentTaskId: "T-103",
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    // AMR-04..10: idle, unassigned, spread across open aisle columns —
+    // fresh members of the fleet ready to bid once tasks come in. Brings
+    // the fleet to 10 total: 5 Scout Agile 2.0, 5 Addverb Dynamo 100.
+    {
+      id: "AMR-04",
+      position: { x: 3, y: 2 },
+      home: { x: 3, y: 2 },
+      battery: 95,
+      status: "idle",
+      model: ADDVERB_DYNAMO_100,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-05",
+      position: { x: 3, y: 10 },
+      home: { x: 3, y: 10 },
+      battery: 88,
+      status: "idle",
+      model: SCOUT_AGILE_2,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-06",
+      position: { x: 9, y: 2 },
+      home: { x: 9, y: 2 },
+      battery: 100,
+      status: "idle",
+      model: ADDVERB_DYNAMO_100,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-07",
+      position: { x: 9, y: 10 },
+      home: { x: 9, y: 10 },
+      battery: 92,
+      status: "idle",
+      model: SCOUT_AGILE_2,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-08",
+      position: { x: 12, y: 2 },
+      home: { x: 12, y: 2 },
+      battery: 97,
+      status: "idle",
+      model: ADDVERB_DYNAMO_100,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-09",
+      position: { x: 13, y: 10 },
+      home: { x: 13, y: 10 },
+      battery: 84,
+      status: "idle",
+      model: SCOUT_AGILE_2,
+      path: [],
+      priority: BASE_PRIORITY,
+    },
+    {
+      id: "AMR-10",
+      position: { x: 17, y: 4 },
+      home: { x: 17, y: 4 },
+      battery: 90,
+      status: "idle",
+      model: ADDVERB_DYNAMO_100,
       path: [],
       priority: BASE_PRIORITY,
     },

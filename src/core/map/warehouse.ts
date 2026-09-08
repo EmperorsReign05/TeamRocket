@@ -56,6 +56,16 @@ export const DROPOFF_STATIONS: NamedLocation[] = [
   { id: "D2", position: { x: 17, y: 12 } },
 ];
 
+// Where a robot goes when its battery gives out — see
+// src/core/simulation/robotModels.ts's needsToCharge and
+// src/core/simulation/engine.ts's charging state machine. No reservation
+// system: multiple robots can be routed toward the same station, and PIBT
+// alone decides who actually occupies it moment to moment.
+export const CHARGING_STATIONS: NamedLocation[] = [
+  { id: "C1", position: { x: 0, y: 4 } },
+  { id: "C2", position: { x: 19, y: 8 } },
+];
+
 export type WaitingZone = {
   id: string;
   x: number;

@@ -17,7 +17,8 @@ export type RobotStatus =
   | "assigned"
   | "moving"
   | "waiting"
-  | "failed";
+  | "failed"
+  | "charging";
 
 export type TaskStatus = "pending" | "assigned" | "in_progress" | "completed";
 
@@ -38,6 +39,15 @@ export type RobotState = {
   // src/core/auction/assign.ts's isEligible). Optional/defaults to empty
   // so existing code that never touches queuing keeps compiling.
   queuedTaskIds?: string[];
+
+  // Consecutive auction rounds this robot was evaluated and passed over
+  // specifically because of low battery (not payload, not unreachable),
+  // without winning anything. Resets to 0 on any win. Once it crosses
+  // src/core/simulation/robotModels.ts's LOW_BATTERY_STREAK_THRESHOLD, the
+  // engine takes the robot out of service and routes it to the nearest
+  // charging station instead of leaving it to keep losing bids forever.
+  // Optional/defaults to 0 for existing code that never touches this.
+  lowBatteryStreak?: number;
 
   // Intended route, including the current position as path[0].
   // A* (re)plans this; PIBT only ever executes the next step of it.

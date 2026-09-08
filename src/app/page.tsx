@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Task, WorldState } from '@/core/types';
 import { createInitialWorld } from '@/core/simulation/state';
-import { stepSimulation } from '@/core/simulation/engine';
+import { runDispatchTick } from '@/core/simulation/dispatch';
 import { ROBOT_MODELS } from '@/core/simulation/robotModels';
 import { 
   Header,
@@ -37,7 +37,7 @@ export default function Dashboard() {
   });
   const [logs, setLogs] = useState<LogEntry[]>(INITIAL_LOGS);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [robotCount, setRobotCount] = useState(3);
+  const [robotCount, setRobotCount] = useState(() => createInitialWorld().robots.length);
   const [shelfColCount, setShelfColCount] = useState(6);
   const [selectedRobotId, setSelectedRobotId] = useState<string | null>(null);
 
@@ -46,32 +46,14 @@ export default function Dashboard() {
 
     const timer = setInterval(() => {
       setWorld((prevWorld) => {
-        let currentWorld = prevWorld;
+        const nextWorld = runDispatchTick(prevWorld);
 
-        const unassignedTask = currentWorld.tasks.find((t) => t.status === 'pending' && !t.assignedRobotId);
-        if (unassignedTask) {
-          const availableRobot = currentWorld.robots.find(
-            (r) => r.status === 'idle' && (!r.currentTaskId || r.currentTaskId === '')
-          );
-          if (availableRobot) {
-            currentWorld = {
-              ...currentWorld,
-              tasks: currentWorld.tasks.map((t) =>
-                t.id === unassignedTask.id ? { ...t, status: 'assigned', assignedRobotId: availableRobot.id } : t
-              ),
-              robots: currentWorld.robots.map((r) =>
-                r.id === availableRobot.id ? { ...r, status: 'assigned', currentTaskId: unassignedTask.id } : r
-              ),
-            };
-          }
-        }
-
-        const nextWorld = stepSimulation(currentWorld);
-
-        currentWorld.tasks.forEach((t) => {
+        prevWorld.tasks.forEach((t) => {
           const nextT = nextWorld.tasks.find((nt) => nt.id === t.id);
           if (nextT && t.status !== nextT.status) {
-            if (nextT.status === 'in_progress') {
+            if (nextT.status === 'assigned' && t.status === 'pending') {
+              addLog(`task ${nextT.id.toLowerCase()} won by ${(nextT.assignedRobotId ?? 'a robot').toLowerCase()} at auction`, 'info');
+            } else if (nextT.status === 'in_progress') {
               addLog(`${(nextT.assignedRobotId ?? 'robot').toLowerCase()} reached pickup for ${nextT.id.toLowerCase()}`, 'info');
             } else if (nextT.status === 'completed') {
               addLog(`task ${nextT.id.toLowerCase()} completed at dropoff`, 'info');
@@ -79,7 +61,7 @@ export default function Dashboard() {
           }
         });
 
-        if (nextWorld.metrics.conflictCount > currentWorld.metrics.conflictCount) {
+        if (nextWorld.metrics.conflictCount > prevWorld.metrics.conflictCount) {
           addLog(`pibt conflict resolved at tick ${nextWorld.tick}`, 'warning');
         }
 
@@ -113,22 +95,11 @@ export default function Dashboard() {
         status: 'pending',
       };
 
-      const idleRobot = prev.robots.find((r) => r.status === 'idle' && !r.currentTaskId);
-      if (idleRobot) {
-        newTask.status = 'assigned';
-        newTask.assignedRobotId = idleRobot.id;
-        const updatedRobots = prev.robots.map((r) =>
-          r.id === idleRobot.id ? { ...r, status: 'assigned' as const, currentTaskId: newTask.id } : r
-        );
-        addLog(`task ${taskId.toLowerCase()} created and assigned to ${idleRobot.id.toLowerCase()}`, 'info');
-        return {
-          ...prev,
-          tasks: [...prev.tasks, newTask],
-          robots: updatedRobots,
-        };
-      }
-
-      addLog(`task ${taskId.toLowerCase()} queued pending`, 'info');
+      // No manual assignment here — it's just added as pending. The next
+      // simulation tick's auction (see runDispatchTick) picks it up and
+      // assigns it to whichever eligible robot actually bids lowest, the
+      // same way every other task gets assigned.
+      addLog(`task ${taskId.toLowerCase()} created (pending auction)`, 'info');
       return {
         ...prev,
         tasks: [...prev.tasks, newTask],
@@ -169,14 +140,12 @@ export default function Dashboard() {
 
   const handleReset = () => {
     const initial = createInitialWorld();
-    setWorld({
-      ...initial,
-      robots: initial.robots.map((r) => 
-        r.id === 'AMR-03' ? { ...r, home: { x: 1, y: 5 } } : r
-      )
-    });
+    const freshRobots = initial.robots.map((r) =>
+      r.id === 'AMR-03' ? { ...r, home: { x: 1, y: 5 } } : r
+    );
+    setWorld({ ...initial, robots: freshRobots });
     setIsSimulating(false);
-    setRobotCount(3);
+    setRobotCount(freshRobots.length);
     setShelfColCount(6);
     setSelectedRobotId(null);
     addLog('system state reset to initial conditions', 'info');
@@ -186,19 +155,22 @@ export default function Dashboard() {
     setRobotCount(newCount);
     setWorld((prev) => {
       if (newCount > prev.robots.length) {
+        // Open, non-shelf cells clear of every station, intersection,
+        // waiting zone, and the seeded fleet's own start positions —
+        // enough headroom to grow well past the default 10-robot seed.
         const safeSpawns = [
-          { x: 3, y: 4 },
-          { x: 9, y: 8 },
-          { x: 14, y: 4 },
-          { x: 3, y: 12 },
-          { x: 9, y: 12 },
-          { x: 14, y: 12 },
-          { x: 17, y: 4 },
+          { x: 0, y: 0 }, { x: 0, y: 8 }, { x: 0, y: 12 },
+          { x: 3, y: 6 }, { x: 6, y: 1 }, { x: 6, y: 11 },
+          { x: 9, y: 7 }, { x: 9, y: 12 }, { x: 12, y: 1 },
+          { x: 13, y: 12 }, { x: 14, y: 6 }, { x: 17, y: 9 },
         ];
+        const startIndex = prev.robots.length;
         const newRobots = [...prev.robots];
-        for (let i = prev.robots.length; i < newCount; i++) {
-          const spawnIdx = i - 3;
-          const pos = (spawnIdx >= 0 && spawnIdx < safeSpawns.length) ? safeSpawns[spawnIdx] : { x: 0, y: 12 };
+        for (let i = startIndex; i < newCount; i++) {
+          // Relative to where this batch starts, not a hardcoded base
+          // fleet size — correct no matter how many robots already exist.
+          const spawnIdx = (i - startIndex) % safeSpawns.length;
+          const pos = safeSpawns[spawnIdx];
           newRobots.push({
             id: `AMR-${(i + 1).toString().padStart(2, '0')}`,
             position: pos,
