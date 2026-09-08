@@ -66,8 +66,8 @@ export type WaitingZone = {
 
 export const WAITING_ZONES: WaitingZone[] = [
   { id: "W1", x: 1, y: 5, width: 2, height: 3 },
-  { id: "W2", x: 12, y: 4, width: 2, height: 3 },
-  { id: "W3", x: 12, y: 8, width: 2, height: 3 },
+  { id: "W2", x: 12, y: 5, width: 2, height: 3 },
+  { id: "W3", x: 12, y: 9, width: 2, height: 3 },
 ];
 
 export const INTERSECTIONS: Position[] = [

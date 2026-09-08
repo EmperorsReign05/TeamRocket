@@ -17,22 +17,26 @@ export function EventLog({ logs }: EventLogProps) {
   }, [logs]);
 
   return (
-    <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col shadow-lg">
-      <div className="h-12 px-5 border-b border-[#1e293b] flex justify-between items-center bg-[#0b1121]/40 shrink-0">
-        <h3 className="font-semibold text-slate-200 tracking-wide text-sm">Event Log</h3>
-        <span className="flex items-center gap-2 text-[10px] text-[#22c55e] font-bold tracking-wider uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shadow-[0_0_6px_#22c55e] animate-pulse"></span>
-          Live
+    <div className="bg-[#12161F]/35 backdrop-blur-xl rounded-xl border border-white/10 flex flex-col shadow-xl overflow-hidden">
+      <div className="h-12 px-5 border-b border-white/10 flex justify-between items-center bg-white/[0.03] backdrop-blur-sm shrink-0">
+        <h3 className="font-mono text-sm font-semibold tracking-wide text-zinc-200">event log</h3>
+        <span className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+          <span className="w-2 h-2 rounded-full bg-[#C9F27D] shadow-[0_0_8px_#C9F27D] animate-pulse"></span>
+          feed: <span className="text-[#C9F27D]">live</span>
         </span>
       </div>
       <div 
         ref={logContainerRef} 
-        className="h-[250px] overflow-y-auto px-5 py-4 flex flex-col gap-2 text-[12px] font-medium tracking-wide"
+        className="h-[250px] overflow-y-auto px-5 py-4 flex flex-col gap-2 text-[12px] tracking-wide"
       >
         {[...logs].reverse().map((log, idx) => (
-          <div key={idx} className="flex gap-4 items-start opacity-80 hover:opacity-100 transition-opacity pb-2">
-            <span className="text-slate-500 font-mono text-[11px] shrink-0 pt-0.5">{log.time}</span>
-            <span className={`${log.type === 'warning' ? 'text-amber-400' : log.type === 'error' ? 'text-red-400' : 'text-slate-300'}`}>
+          <div key={idx} className="flex gap-4 items-start opacity-85 hover:opacity-100 transition-opacity pb-2">
+            <span className="text-[#8A93A3] font-mono text-[11px] shrink-0 pt-0.5">{log.time}</span>
+            <span className={`font-mono text-[11px] leading-relaxed ${
+              log.type === 'warning' ? 'text-[#FBBF24]' : 
+              log.type === 'error' ? 'text-[#F87171]' : 
+              'text-[#E6E9EF]'
+            }`}>
               {log.text}
             </span>
           </div>

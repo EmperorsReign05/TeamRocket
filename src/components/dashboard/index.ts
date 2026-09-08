@@ -1,5 +1,4 @@
 export * from './types';
-export * from './SidebarNav';
 export * from './Header';
 export * from './WarehouseMap';
 export * from './ControlPanel';

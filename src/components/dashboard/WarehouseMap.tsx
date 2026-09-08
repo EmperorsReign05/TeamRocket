@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { X, Navigation, BatteryCharging, Zap } from 'lucide-react';
 import { 
   WAREHOUSE_WIDTH, 
   WAREHOUSE_HEIGHT, 
@@ -37,11 +38,21 @@ export function WarehouseMap({
     });
   }, [shelfColCount, shelfCols]);
 
+  const selectedRobot = useMemo(() => {
+    return robots.find(r => r.id === selectedRobotId);
+  }, [robots, selectedRobotId]);
+
+  const aisleLanes = useMemo(() => {
+    const horizontalRows = [4, 8];
+    const verticalCols = [6, 13];
+    return { horizontalRows, verticalCols };
+  }, []);
+
   const renderShelf = (x: number, y: number, w: number, h: number) => {
     return (
       <div 
         key={`shelf-${x}-${y}`} 
-        className="absolute bg-[#0f172a] border border-[#1e293b] p-[2px] rounded-sm shadow-md"
+        className="absolute bg-[#181E29] border border-[#283242] p-[2px] rounded-[3px] shadow-sm z-10"
         style={{ 
           left: `calc(100% * ${x}/${WAREHOUSE_WIDTH})`, 
           top: `calc(100% * ${y}/${WAREHOUSE_HEIGHT})`, 
@@ -54,51 +65,102 @@ export function WarehouseMap({
         }}
       >
         {Array.from({ length: w * h }).map((_, i) => (
-          <div key={i} className="bg-[#334155] border border-[#475569] rounded-[1px] shadow-inner"></div>
+          <div 
+            key={i} 
+            className="w-full h-full bg-[#222B3A] border border-[#323F52] p-[1.5px] flex flex-col justify-between rounded-[1px]"
+          >
+            <div className="w-full h-[40%] bg-[#2B3648] border border-[#3D4B60] rounded-[1px]"></div>
+            <div className="w-full h-[40%] bg-[#2B3648] border border-[#3D4B60] rounded-[1px]"></div>
+          </div>
         ))}
       </div>
     );
   };
 
   return (
-    <div className="bg-[#131c31] rounded-xl border border-[#1e293b] flex flex-col overflow-hidden shadow-lg relative min-h-[550px]">
+    <div className="border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md rounded-xl flex flex-col overflow-hidden shadow-2xl relative min-h-[580px]">
       
-      {/* Map Header */}
-      <div className="h-12 border-b border-[#1e293b] flex justify-between items-center px-5 bg-[#0b1121]/60 shrink-0 z-10">
-        <h2 className="font-semibold text-slate-200 text-sm tracking-wide">Warehouse Layout (2D)</h2>
-        <div className="flex gap-4 text-[11px] text-slate-400 font-medium tracking-wide">
-          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#334155] rounded-sm"></div> Shelf</div>
-          <div className="flex items-center gap-2"><div className="w-4 border-t border-slate-500 border-dashed"></div> Nav Path</div>
-          <div className="flex items-center gap-2"><div className="w-4 border-t border-[#ef4444] opacity-50 border-dotted"></div> Ghost Path</div>
-          <div className="flex items-center gap-2">
-             <div className="w-3 h-3 border border-slate-500 flex items-center justify-center relative"><div className="w-[1px] h-3 bg-slate-500 rotate-45 absolute"></div><div className="w-[1px] h-3 bg-slate-500 -rotate-45 absolute"></div></div> 
-             Intersection
-          </div>
-          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#22c55e] rounded-sm"></div> Pickup</div>
-          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#ef4444] rounded-sm"></div> Drop</div>
-          <div className="flex items-center gap-2"><div className="w-3 h-3 border border-blue-500 border-dashed rounded-sm"></div> Waiting Zone</div>
-        </div>
+      <div className="h-12 border-b border-zinc-800/80 flex items-center justify-between px-6 bg-zinc-950/40 backdrop-blur-sm shrink-0 z-10 select-none">
+        <h2 className="font-mono text-sm font-semibold tracking-wide text-zinc-200">
+          warehouse layout (2d)
+        </h2>
       </div>
       
-      {/* Actual Map Grid */}
-      <div className="flex-1 bg-[#0f172a] pt-8 pl-8 pr-4 pb-4 flex items-center justify-center overflow-hidden">
+      <div className="flex-1 bg-black/30 backdrop-blur-sm pt-8 pl-8 pr-4 pb-4 flex items-center justify-center overflow-hidden relative">
          <div className="warehouse-map w-full h-full relative" style={{ 
              display: 'grid', 
              gridTemplateColumns: `repeat(${WAREHOUSE_WIDTH}, minmax(0, 1fr))`, 
              gridTemplateRows: `repeat(${WAREHOUSE_HEIGHT}, minmax(0, 1fr))`,
              gap: '1px'
          }}>
-            {/* Grid Background Lines */}
-            {Array.from({ length: WAREHOUSE_WIDTH * WAREHOUSE_HEIGHT }).map((_, i) => (
-                <div key={i} className="border border-dotted border-[#334155]/60"></div>
+            {Array.from({ length: WAREHOUSE_WIDTH * WAREHOUSE_HEIGHT }).map((_, i) => {
+              const x = i % WAREHOUSE_WIDTH;
+              const y = Math.floor(i / WAREHOUSE_WIDTH);
+              const isAisle = aisleLanes.horizontalRows.includes(y) || [0, 3, 6, 9, 13, 14, 17].includes(x);
+              return (
+                <div 
+                  key={i} 
+                  className={`border border-white/[0.06] ${isAisle ? 'bg-white/[0.03]' : 'bg-transparent'}`}
+                ></div>
+              );
+            })}
+
+            {aisleLanes.horizontalRows.map((y) => (
+              <div 
+                key={`lane-h-${y}`}
+                className="absolute pointer-events-none border-b border-dashed border-[#545C6B]/40 w-full"
+                style={{
+                  top: `calc(100% * ${y + 0.5}/${WAREHOUSE_HEIGHT})`,
+                  left: 0
+                }}
+              />
             ))}
 
-            {/* Coordinate Labels */}
+            {aisleLanes.verticalCols.map((x) => (
+              <div 
+                key={`lane-v-${x}`}
+                className="absolute pointer-events-none border-r border-dashed border-[#545C6B]/40 h-full"
+                style={{
+                  left: `calc(100% * ${x + 0.5}/${WAREHOUSE_WIDTH})`,
+                  top: 0
+                }}
+              />
+            ))}
+
             {Array.from({ length: WAREHOUSE_WIDTH }).map((_, i) => (
-                <div key={`col-${i}`} className="absolute top-[-22px] text-[10px] text-slate-400 font-mono" style={{ left: `calc((100%/${WAREHOUSE_WIDTH}) * ${i} + (100%/(${WAREHOUSE_WIDTH} * 2)) - 4px)` }}>{i}</div>
+              <div 
+                key={`col-${i}`} 
+                className="absolute top-[-22px] text-[10px] text-[#8A93A3] font-mono font-medium -translate-x-1/2" 
+                style={{ left: `calc((100% / ${WAREHOUSE_WIDTH}) * ${i + 0.5})` }}
+              >
+                {i}
+              </div>
             ))}
             {Array.from({ length: WAREHOUSE_HEIGHT }).map((_, i) => (
-                <div key={`row-${i}`} className="absolute left-[-22px] text-[10px] text-slate-400 font-mono" style={{ top: `calc((100%/${WAREHOUSE_HEIGHT}) * ${i} + (100%/(${WAREHOUSE_HEIGHT} * 2)) - 6px)` }}>{i}</div>
+              <div 
+                key={`row-${i}`} 
+                className="absolute left-[-22px] text-[10px] text-[#8A93A3] font-mono font-medium -translate-y-1/2" 
+                style={{ top: `calc((100% / ${WAREHOUSE_HEIGHT}) * ${i + 0.5})` }}
+              >
+                {i}
+              </div>
+            ))}
+
+            {[1, 5, 9].map((y) => (
+              <div
+                key={`dock-${y}`}
+                className="absolute border border-dashed border-zinc-700/80 bg-zinc-900/40 rounded-[2px] flex flex-col justify-around p-[2px] z-10"
+                style={{
+                  left: `calc(100% * 0/${WAREHOUSE_WIDTH})`,
+                  top: `calc(100% * ${y}/${WAREHOUSE_HEIGHT})`,
+                  width: `calc(100% * 1/${WAREHOUSE_WIDTH})`,
+                  height: `calc(100% * 3/${WAREHOUSE_HEIGHT})`
+                }}
+              >
+                <div className="w-full h-[24%] border border-zinc-700/60 bg-zinc-800/40 rounded-[1px]" />
+                <div className="w-full h-[24%] border border-zinc-700/60 bg-zinc-800/40 rounded-[1px]" />
+                <div className="w-full h-[24%] border border-zinc-700/60 bg-zinc-800/40 rounded-[1px]" />
+              </div>
             ))}
 
             {displayedShelfBlocks.map(block => renderShelf(block[0], block[1], block[2], block[3]))}
@@ -106,7 +168,7 @@ export function WarehouseMap({
             {INTERSECTIONS.map((pos, idx) => (
               <div 
                 key={`intersection-${idx}`} 
-                className="absolute border border-slate-600/70 flex items-center justify-center" 
+                className="absolute border border-[#283242] bg-[#181E29]/60 flex items-center justify-center z-10" 
                 style={{ 
                   left: `calc(100% * ${pos.x}/${WAREHOUSE_WIDTH})`, 
                   top: `calc(100% * ${pos.y}/${WAREHOUSE_HEIGHT})`, 
@@ -114,15 +176,15 @@ export function WarehouseMap({
                   height: `calc(100% * 1/${WAREHOUSE_HEIGHT})` 
                 }}
               >
-                <div className="w-[1px] h-full bg-slate-600/60 rotate-45 absolute"></div>
-                <div className="w-[1px] h-full bg-slate-600/60 -rotate-45 absolute"></div>
+                <div className="w-[1px] h-full bg-[#545C6B] rotate-45 absolute"></div>
+                <div className="w-[1px] h-full bg-[#545C6B] -rotate-45 absolute"></div>
               </div>
             ))}
 
             {WAITING_ZONES.map((zone) => (
               <div 
                 key={zone.id} 
-                className="absolute border-2 border-blue-500 border-dashed bg-blue-500/10 flex items-center justify-center rounded-sm" 
+                className="absolute border-2 border-dashed border-[#38bdf8]/80 bg-[#38bdf8]/10 rounded-md flex flex-col items-center justify-center z-10 shadow-[0_0_15px_rgba(56,189,248,0.15)]" 
                 style={{ 
                   left: `calc(100% * ${zone.x}/${WAREHOUSE_WIDTH})`, 
                   top: `calc(100% * ${zone.y}/${WAREHOUSE_HEIGHT})`, 
@@ -130,14 +192,16 @@ export function WarehouseMap({
                   height: `calc(100% * ${zone.height}/${WAREHOUSE_HEIGHT})` 
                 }}
               >
-                 <span className="text-[10px] text-blue-300 font-bold text-center leading-tight">Waiting Zone<br/>{zone.id}</span>
+                 <span className="text-[10px] text-[#38bdf8] font-mono font-bold text-center leading-tight">
+                   waiting zone<br/>{zone.id.toLowerCase()}
+                 </span>
               </div>
             ))}
 
             {PICKUP_STATIONS.map((station) => (
               <div 
                 key={station.id} 
-                className="absolute border-2 border-[#22c55e] bg-[#22c55e]/20 flex items-center justify-center rounded-sm" 
+                className="absolute bg-[#22c55e] rounded-[3px] shadow-[0_0_18px_rgba(34,197,94,0.45)] flex items-center justify-center z-20" 
                 style={{ 
                   left: `calc(100% * ${station.position.x}/${WAREHOUSE_WIDTH})`, 
                   top: `calc(100% * ${station.position.y}/${WAREHOUSE_HEIGHT})`, 
@@ -145,14 +209,15 @@ export function WarehouseMap({
                   height: `calc(100% * 1/${WAREHOUSE_HEIGHT})` 
                 }}
               >
-                 <span className="text-[11px] text-[#22c55e] font-bold">{station.id}</span>
+                 <div className="absolute -top-1.5 w-6 h-1.5 bg-[#22c55e]/30 border-t border-x border-[#22c55e] rounded-t-sm" />
+                 <span className="text-[12px] text-[#090C11] font-mono font-black">{station.id.toLowerCase()}</span>
               </div>
             ))}
 
             {DROPOFF_STATIONS.map((station) => (
               <div 
                 key={station.id} 
-                className="absolute border-2 border-[#ef4444] bg-[#ef4444]/20 flex items-center justify-center rounded-sm" 
+                className="absolute bg-[#ef4444] rounded-[3px] shadow-[0_0_18px_rgba(239,68,68,0.45)] flex items-center justify-center z-20" 
                 style={{ 
                   left: `calc(100% * ${station.position.x}/${WAREHOUSE_WIDTH})`, 
                   top: `calc(100% * ${station.position.y}/${WAREHOUSE_HEIGHT})`, 
@@ -160,12 +225,12 @@ export function WarehouseMap({
                   height: `calc(100% * 1/${WAREHOUSE_HEIGHT})` 
                 }}
               >
-                 <span className="text-[11px] text-[#ef4444] font-bold">{station.id}</span>
+                 <span className="text-[12px] text-[#090C11] font-mono font-black">{station.id.toLowerCase()}</span>
               </div>
             ))}
 
             <svg 
-              className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-hidden"
+              className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-hidden"
               viewBox={`0 0 ${WAREHOUSE_WIDTH} ${WAREHOUSE_HEIGHT}`}
               preserveAspectRatio="none"
             >
@@ -182,33 +247,23 @@ export function WarehouseMap({
                         points={pointsStr}
                         fill="none"
                         stroke={color}
-                        strokeWidth="0.22"
+                        strokeWidth="0.25"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        opacity={0.3}
+                        opacity={0.35}
                       />
                     )}
                     <polyline
                       points={pointsStr}
                       fill="none"
                       stroke={color}
-                      strokeWidth={isSelected ? "0.12" : "0.08"}
-                      strokeDasharray="0.2 0.15"
+                      strokeWidth={isSelected ? "0.14" : "0.1"}
+                      strokeDasharray="0.3 0.2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      opacity={selectedRobotId ? (isSelected ? 1.0 : 0.25) : 0.8}
+                      opacity={selectedRobotId ? (isSelected ? 1.0 : 0.3) : 0.9}
                       className="transition-all duration-300"
                     />
-                    {robot.path.map((pt, pIdx) => (
-                      <circle
-                        key={`pt-${robot.id}-${pIdx}`}
-                        cx={pt.x + 0.5}
-                        cy={pt.y + 0.5}
-                        r={pIdx === robot.path!.length - 1 ? 0.12 : 0.05}
-                        fill={pIdx === robot.path!.length - 1 ? color : '#ffffff'}
-                        opacity={selectedRobotId ? (isSelected ? 0.9 : 0.2) : 0.6}
-                      />
-                    ))}
                   </g>
                 );
               })}
@@ -222,8 +277,7 @@ export function WarehouseMap({
                 <div 
                   key={robot.id}
                   onClick={() => onSelectRobot(isSelected ? null : robot.id)}
-                  // To enable snapping movement for debugging, use: duration-500 ease-in-out
-                  className={`absolute flex flex-col items-center justify-center transition-all duration-1000 ease-linear cursor-pointer z-30 group ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
+                  className={`absolute flex flex-col items-center justify-center transition-all duration-[650ms] ease-linear cursor-pointer z-30 group ${isSelected ? 'scale-110' : 'hover:scale-105'}`} 
                   style={{ 
                     left: `calc(100% * ${robot.position.x}/${WAREHOUSE_WIDTH})`, 
                     top: `calc(100% * ${robot.position.y}/${WAREHOUSE_HEIGHT})`, 
@@ -233,31 +287,34 @@ export function WarehouseMap({
                   title={`${robot.id} | Status: ${robot.status} | Battery: ${robot.battery}%`}
                 >
                    {isSelected && (
-                     <div className="absolute inset-[-4px] rounded-full border-2 border-white/80 animate-pulse pointer-events-none"></div>
+                     <div className="absolute inset-[-5px] rounded-full border-2 border-white animate-pulse pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.6)]"></div>
                    )}
 
                    <div 
-                     className={`w-[54%] h-[54%] rounded-full relative z-20 flex items-center justify-center transition-all ${robot.status === 'failed' ? 'animate-ping' : ''}`} 
-                     style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
+                     className={`w-[58%] h-[58%] rounded-full relative z-20 flex items-center justify-center transition-all ${robot.status === 'failed' ? 'animate-ping' : ''}`} 
+                     style={{ 
+                       backgroundColor: color, 
+                       boxShadow: `0 0 16px ${color}, 0 0 6px ${color}` 
+                     }}
                    >
-                     <div className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                     <div className="w-2 h-2 rounded-full bg-white shadow-sm" />
                    </div>
 
                    {heading && (
                      <div 
-                       className="absolute pointer-events-none text-white/80 transition-transform duration-300"
+                       className="absolute pointer-events-none text-white transition-transform duration-300"
                        style={{ 
-                         transform: heading === 'up' ? 'translateY(-14px) rotate(0deg)' : 
+                         transform: heading === 'up' ? 'translateY(-14px)' : 
                                     heading === 'down' ? 'translateY(14px) rotate(180deg)' : 
                                     heading === 'left' ? 'translateX(-14px) rotate(-90deg)' : 
                                     'translateX(14px) rotate(90deg)' 
                        }}
                      >
-                       <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px]" style={{ borderBottomColor: color }} />
+                       <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-white drop-shadow-[0_0_3px_white]" />
                      </div>
                    )}
 
-                   <span className={`text-[9px] text-white mt-1 font-bold absolute top-full whitespace-nowrap transition-colors ${isSelected ? 'text-blue-300 underline font-extrabold' : 'opacity-90'}`}>
+                   <span className="bg-[#090C11]/90 border border-[#1F2633] px-1.5 py-0.2 rounded text-[10px] font-mono font-bold text-[#E6E9EF] shadow-md absolute top-[102%] whitespace-nowrap">
                      {robot.id}
                    </span>
                 </div>
@@ -265,6 +322,90 @@ export function WarehouseMap({
             })}
 
          </div>
+
+         {selectedRobot && (
+           <div className="absolute bottom-3 left-6 right-6 bg-zinc-950/85 backdrop-blur-md border border-zinc-800 rounded-lg p-2.5 px-4 flex items-center justify-between shadow-2xl animate-in fade-in duration-200 z-40">
+             <div className="flex items-center gap-4">
+               <div className="flex items-center gap-2">
+                 <div 
+                   className="w-3 h-3 rounded-full" 
+                   style={{ backgroundColor: getRobotColor(selectedRobot.id, robots.findIndex(r => r.id === selectedRobot.id)) }} 
+                 />
+                 <span className="font-mono font-bold text-xs text-[#E6E9EF]">{selectedRobot.id}</span>
+               </div>
+               <div className="text-[11px] font-mono text-[#8A93A3] flex items-center gap-1.5">
+                 <Navigation size={12} className="text-[#8A93A3]" />
+                 <span>pos [{selectedRobot.position.x}, {selectedRobot.position.y}]</span>
+               </div>
+               <div className="text-[11px] font-mono flex items-center gap-1.5">
+                 <Zap size={12} className="text-[#8A93A3]" />
+                 <span className={`font-bold ${selectedRobot.status === 'failed' ? 'text-[#F87171]' : 'text-[#8A93A3]'}`}>
+                   {selectedRobot.status}
+                 </span>
+               </div>
+               <div className="text-[11px] font-mono flex items-center gap-1.5">
+                 <BatteryCharging size={12} className={selectedRobot.battery > 70 ? 'text-[#34D399]' : selectedRobot.battery > 30 ? 'text-[#FBBF24]' : 'text-[#F87171]'} />
+                 <span className={selectedRobot.battery > 70 ? 'text-[#34D399]' : selectedRobot.battery > 30 ? 'text-[#FBBF24]' : 'text-[#F87171]'}>{selectedRobot.battery}%</span>
+               </div>
+               {selectedRobot.path && selectedRobot.path.length > 1 && (
+                 <div className="text-[11px] font-mono text-[#8A93A3]">
+                   {selectedRobot.path.length - 1} steps to target
+                 </div>
+               )}
+             </div>
+             <button 
+               onClick={() => onSelectRobot(null)} 
+               className="text-[#8A93A3] hover:text-[#E6E9EF] p-1 rounded hover:bg-[#1A202C] transition-colors cursor-pointer"
+             >
+               <X size={14} />
+             </button>
+           </div>
+         )}
+      </div>
+
+      <div className="h-11 border-t border-zinc-800/80 px-6 bg-zinc-950/40 backdrop-blur-sm flex items-center justify-between text-[11px] font-mono text-zinc-400 shrink-0 select-none overflow-x-auto gap-4">
+        <div className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 bg-[#181E29] border border-[#283242] rounded-[2px] flex flex-col justify-between p-[1px]">
+            <div className="w-full h-[35%] bg-[#222B3A]"></div>
+            <div className="w-full h-[35%] bg-[#222B3A]"></div>
+          </div>
+          <span>shelf</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 border-t border-zinc-600 border-dashed"></div>
+          <span>navigable path</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 border border-[#283242] flex items-center justify-center relative">
+            <div className="w-[1px] h-3 bg-zinc-600 rotate-45 absolute"></div>
+            <div className="w-[1px] h-3 bg-zinc-600 -rotate-45 absolute"></div>
+          </div>
+          <span>intersection</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-[#22c55e] rounded-[2px]"></div>
+          <span>pickup station</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-[#ef4444] rounded-[2px]"></div>
+          <span>drop station</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 border border-dashed border-[#38bdf8]/80 bg-[#38bdf8]/20 rounded-[2px]"></div>
+          <span>waiting zone</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 border border-zinc-600 border-dashed rounded-[2px]"></div>
+          <span>docking station</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-[#38BDF8]"></div>
+            <div className="w-2 h-2 rounded-full bg-[#FB923C]"></div>
+            <div className="w-2 h-2 rounded-full bg-[#C084FC]"></div>
+          </div>
+          <span>amr fleet</span>
+        </div>
       </div>
     </div>
   );

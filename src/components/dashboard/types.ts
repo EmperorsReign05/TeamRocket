@@ -7,19 +7,14 @@ export type LogEntry = {
 };
 
 export const ROBOT_COLORS: Record<string, string> = {
-  'AMR-01': '#3b82f6',
-  'AMR-02': '#f59e0b',
-  'AMR-03': '#22c55e',
-  'AMR-04': '#a855f7',
-  'AMR-05': '#ec4899',
-  'AMR-06': '#06b6d4',
-  'AMR-07': '#eab308',
-  'AMR-08': '#6366f1',
+  'AMR-01': '#38BDF8',
+  'AMR-02': '#FB923C',
+  'AMR-03': '#C084FC',
 };
 
 export function getRobotColor(id: string, index: number): string {
   if (ROBOT_COLORS[id]) return ROBOT_COLORS[id];
-  const palette = ['#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#ec4899', '#06b6d4', '#eab308', '#6366f1'];
+  const palette = ['#38BDF8', '#FB923C', '#C084FC', '#F472B6', '#818CF8'];
   return palette[index % palette.length];
 }
 
