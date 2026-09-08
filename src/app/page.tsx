@@ -52,6 +52,31 @@ function releaseRobotTasks(tasks: Task[], robotIds: Set<string>): Task[] {
   );
 }
 
+// A synthetic task that pins a demo robot to a target cell — pickup and
+// dropoff are the same cell, so arriving there completes it in two ticks
+// flat (one to register the pickup, one to register the dropoff at the
+// same position). Its status starts "assigned", not "pending": the whole
+// point is that it's NOT up for auction and can't be reassigned out from
+// under the robot. Earlier version of this demo just set the robot idle
+// and pointed its `home` at the target — which meant the very next
+// runDispatchTick's auction round could (and, verified live, reliably
+// did) immediately hijack an "idle" demo robot into a real pending task
+// before the staged encounter ever got a chance to play out. A robot with
+// a currentTaskId keeps working that task no matter what it wins in the
+// same auction round — winning something else just appends to its queue.
+function makeDemoTask(robotId: string, target: Position, tick: number): Task {
+  return {
+    id: `DEMO-${robotId}-${tick}-${Math.random().toString(36).slice(2, 7)}`,
+    pickup: target,
+    dropoff: target,
+    weight: 1,
+    createdAt: tick,
+    priority: 5,
+    status: 'assigned',
+    assignedRobotId: robotId,
+  };
+}
+
 const TOOLTIP_LIFETIME_MS = 2200;
 
 // Which robot to point the tooltip at, and what to say — derived from a
@@ -207,17 +232,19 @@ export default function Dashboard() {
       }
       const [a, b] = eligible;
       const releasedTasks = releaseRobotTasks(prev.tasks, new Set([a.id, b.id]));
+      const taskA = makeDemoTask(a.id, CONFLICT_CORRIDOR_BOTTOM, prev.tick);
+      const taskB = makeDemoTask(b.id, CONFLICT_CORRIDOR_TOP, prev.tick);
       const robots = prev.robots.map((r) => {
         if (r.id === a.id) {
-          return { ...r, position: CONFLICT_CORRIDOR_TOP, home: CONFLICT_CORRIDOR_BOTTOM, currentTaskId: undefined, queuedTaskIds: [], path: [], status: 'idle' as const };
+          return { ...r, position: CONFLICT_CORRIDOR_TOP, currentTaskId: taskA.id, queuedTaskIds: [], path: [], status: 'assigned' as const };
         }
         if (r.id === b.id) {
-          return { ...r, position: CONFLICT_CORRIDOR_BOTTOM, home: CONFLICT_CORRIDOR_TOP, currentTaskId: undefined, queuedTaskIds: [], path: [], status: 'idle' as const };
+          return { ...r, position: CONFLICT_CORRIDOR_BOTTOM, currentTaskId: taskB.id, queuedTaskIds: [], path: [], status: 'assigned' as const };
         }
         return r;
       });
       addLog(`conflict scenario: ${a.id.toLowerCase()} and ${b.id.toLowerCase()} sent head-on down the x=6 aisle — watch pibt resolve it`, 'warning');
-      return { ...prev, robots, tasks: releasedTasks };
+      return { ...prev, robots, tasks: [...releasedTasks, taskA, taskB] };
     });
   };
 
@@ -231,25 +258,26 @@ export default function Dashboard() {
       const chosen = eligible.slice(0, 4);
       const chosenIds = new Set(chosen.map((r) => r.id));
       const releasedTasks = releaseRobotTasks(prev.tasks, chosenIds);
+      // Each robot's target is the cell the next one (clockwise) starts
+      // on — a pure rotation where everyone wants a cell someone else is
+      // standing on, the classic case only backtracking actually solves.
+      const demoTasks = chosen.map((r, idx) =>
+        makeDemoTask(r.id, DEADLOCK_BOX[(idx + 1) % DEADLOCK_BOX.length], prev.tick)
+      );
       const robots = prev.robots.map((r) => {
         const idx = chosen.findIndex((c) => c.id === r.id);
         if (idx === -1) return r;
-        // Each robot's home is the cell the next one (clockwise) starts
-        // on — a pure rotation where everyone wants a cell someone else is
-        // standing on, the classic case only backtracking actually solves.
-        const nextIdx = (idx + 1) % DEADLOCK_BOX.length;
         return {
           ...r,
           position: DEADLOCK_BOX[idx],
-          home: DEADLOCK_BOX[nextIdx],
-          currentTaskId: undefined,
+          currentTaskId: demoTasks[idx].id,
           queuedTaskIds: [],
           path: [],
-          status: 'idle' as const,
+          status: 'assigned' as const,
         };
       });
       addLog(`deadlock scenario: ${chosen.map((r) => r.id.toLowerCase()).join(', ')} locked in a rotation at (12-13, 1-2) — priority inheritance engaging`, 'warning');
-      return { ...prev, robots, tasks: releasedTasks };
+      return { ...prev, robots, tasks: [...releasedTasks, ...demoTasks] };
     });
   };
 
